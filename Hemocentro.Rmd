@@ -1,0 +1,213 @@
+---
+title: "Hemocentro"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+Análise da base de dados do hemocentro de Porto Alegre
+
+#### Carregando bibliotecas
+```{r}
+library(tidyverse)
+library(gridExtra)
+library(readr)
+
+#Setando Encoding
+Sys.setlocale("LC_ALL", "pt_BR.UTF-8")
+```
+
+#### Carregando dados
+```{r}
+doacoes <- read.csv2(file = 'doacao-Table 1.csv')
+transfusoes <- read.csv2(file = 'transfusao-Table 1.csv')
+```
+
+#### Listando uma amostra dos dados para ver se está tudo ok.
+```{r}
+head(doacoes)
+```
+
+```{r}
+head(transfusoes)
+```
+
+Todas as duas tabelas parecem ter uma coluna ID fora do contexto. Vamos removelas. 
+```{r}
+doacoes <- subset(doacoes, select = -c(ID) )
+transfusoes <- subset(transfusoes, select = -c(ID) )
+```
+
+
+Carregando os dados para validar novamente.
+```{r}
+head(doacoes)
+```
+
+```{r}
+head(transfusoes)
+```
+
+#### Vamos começar analisando os dados que temos em mãos, antes de tentar qualquer associação com o outro dataframe.
+
+## Doações
+
+### Doações por cidade
+
+#### Sumário dos dados
+```{r}
+summary(doacoes)
+```
+
+#### Valores de cidades
+```{r}
+cidades <- table(doacoes$CIDADE)
+head(cidades)
+```
+
+#### Quantidade de cidades
+```{r}
+length(cidades)
+```
+
+
+```{r}
+cidades <- as.data.frame(cidades)
+colnames(cidades) <- c("Cidade", "Doacoes")
+head(cidades)
+```
+
+#### Ordenando as 10 principais cidades com mais doadores
+```{r}
+order.donnations <- with(cidades, order(-Doacoes))
+first_ten <- head(cidades[order.donnations,],  10)
+first_ten
+```
+
+Ok, temos bastante registros para plotar e não teríamos como exibir toda essa quantidade de valores únicos em um gráfico, não de forma que ficasse vizível.
+Vamos começar listando as 10 cidades com maiores doações.
+
+Bom, as 10 primeira cidades, especiamente as 5 primeiras, estrapolam nossa chance de printar um gráfico de forma que fique 
+apresentável. 
+```{r}
+?geom_text
+
+first_ten %>% 
+  ggplot(mapping = aes(x = Cidade, y = Doacoes))+
+  geom_col() +
+  theme(axis.text=element_text(size=8),
+        axis.text.x = element_text(angle = 90, hjust = 1),
+        axis.title=element_text(size=14,face="bold"))
+
+```
+
+
+#### Analisando as doações da cidade de Porto Alegre
+```{r}
+poa_df <- subset(doacoes, doacoes$CIDADE == 'PORTO ALEGRE')
+
+print('Sumário por bairros.')
+summary(poa_df$BAIRRO)
+```
+Ok, temos vários resultados, não seria nada interessante colocar todos esses valores em um gráfico.
+Vamos limitar somente nos bairros com mais de 100 doadores.
+
+#### Filtrando bairros
+```{r}
+poa_bairros_df <- poa_df[ poa_df$BAIRRO %in%  names(table(poa_df$BAIRRO))[table(poa_df$BAIRRO) > 100] , ]
+
+?theme
+
+poa_bairros_df %>% 
+  ggplot(mapping = aes(x = BAIRRO))+
+  geom_bar() +
+  ylab("Número de Doadores")+
+  theme(axis.text=element_text(size=7),
+        axis.text.x = element_text(angle = 90, hjust = 1),
+        axis.title=element_text(size=14,face="bold"))
+```
+
+
+#### Criando função para calcular a idade dos doadores
+```{r}
+calc_idade <- function(data_str) {
+  data_nasc <- as.Date(as.character(data_str), format="%Y-%m-%d %H:%M:%S")
+  years <- as.numeric(difftime(Sys.Date(), data_nasc, unit="weeks"))/52.25
+  return(as.numeric(round(years)))
+}
+```
+
+#### Aplicando função no DF
+```{r}
+doacoes$IDADE <- sapply(doacoes$NASCIMENTO, calc_idade)
+summary(doacoes$IDADE)
+```
+
+
+#### Distribuição dos dados por idade
+```{r}
+doacoes %>% 
+  ggplot(mapping = aes(x = IDADE))+
+  geom_histogram(binwidth = 1)+
+  ylab("Quantidade")+
+  theme(axis.text=element_text(size=7),
+        axis.title=element_text(size=14,face="bold"))
+```
+
+#### Distribuição dos dados por idade e sexo
+```{r}
+ggplot(data = doacoes, mapping = aes(x = SEXO, y = IDADE, group = 1))+
+  stat_summary(fun.ymin = min, fun.ymax = max, fun.y = median)+
+  geom_line(stat = 'summary', fun.y = mean)+
+  geom_line(stat = 'summary', fun.y = quantile, fun.args = list(probs = .1),
+            linetype = 2, color =  'blue')+
+  geom_line(stat = 'summary', fun.y = quantile, fun.args = list(probs = .75),
+            linetype = 3, color =  'red')+
+  geom_line(stat = 'summary', fun.y = quantile, fun.args = list(probs = .9),
+            linetype = 2, color =  'blue')+
+  geom_line(stat = 'summary', fun.y = quantile, fun.args = list(probs = .25),
+            linetype = 3, color =  'red')
+```
+
+
+#### Distribuição dos dados por idade e sexo
+```{r}
+doacoes %>% 
+  ggplot(mapping = aes(x = IDADE))+
+  geom_histogram(binwidth = 1)+
+  ylab("Quantidade")+
+  theme(axis.text=element_text(size=7),
+        axis.title=element_text(size=14,face="bold"))+
+  facet_wrap( ~ SEXO, ncol = 2)
+```
+
+
+#### Distribuição dos dados por idade e sexo na cidade de Porto Alegre
+```{r}
+doacoes %>% 
+  subset(CIDADE == 'PORTO ALEGRE') %>%
+  ggplot(mapping = aes(x = IDADE))+
+  geom_histogram(binwidth = 1)+
+  ylab("Quantidade")+
+  theme(axis.text=element_text(size=7),
+        axis.title=element_text(size=14,face="bold"))+
+  facet_wrap( ~ SEXO, ncol = 2)
+```
+
+#### Distribuição dos dados por idade e sexo nas principais cidades exceto Porto Alegre
+```{r}
+doacoes[ doacoes$CIDADE %in%  names(table(doacoes$CIDADE))[table(doacoes$CIDADE) > 250] , ] %>% 
+  subset(CIDADE != 'PORTO ALEGRE') %>%
+  ggplot(mapping = aes(x = IDADE))+
+  geom_histogram(binwidth = 1)+
+  ylab("Quantidade")+
+  theme(axis.text=element_text(size=7),
+        axis.title=element_text(size=14,face="bold"))+
+  facet_wrap( ~CIDADE, ncol = 2)
+```
+
+
+
+
+
+
