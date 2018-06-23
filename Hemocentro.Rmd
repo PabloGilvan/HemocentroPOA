@@ -6,12 +6,18 @@ output:
 ---
 
 Análise da base de dados do hemocentro de Porto Alegre
+Fontes:
+https://www.fee.rs.gov.br/indicadores/populacao/estimativas-populacionais/
+
 
 #### Carregando bibliotecas
 ```{r}
 library(tidyverse)
 library(gridExtra)
 library(readr)
+library(stringr)
+library(reshape2)
+library(stringi)
 
 #Setando Encoding
 Sys.setlocale("LC_ALL", "pt_BR.UTF-8")
@@ -70,7 +76,7 @@ head(cidades)
 length(cidades)
 ```
 
-
+Agora vamos pegar esse agrupamento de Cidade/Doacoes que está em formato Table e transformar para um Dataframe, para conseguir melhor trabalhar com os dados.
 ```{r}
 cidades <- as.data.frame(cidades)
 colnames(cidades) <- c("Cidade", "Doacoes")
@@ -84,22 +90,94 @@ first_ten <- head(cidades[order.donnations,],  10)
 first_ten
 ```
 
-Ok, temos bastante registros para plotar e não teríamos como exibir toda essa quantidade de valores únicos em um gráfico, não de forma que ficasse vizível.
-Vamos começar listando as 10 cidades com maiores doações.
-
-Bom, as 10 primeira cidades, especiamente as 5 primeiras, estrapolam nossa chance de printar um gráfico de forma que fique 
-apresentável. 
+Ok, temos bastante registros para plotar e não teríamos como exibir toda essa quantidade de valores únicos em um gráfico, não de forma que ficasse de fácil visualização.
+Vamos começar listando as 10 cidades com maior quantidade de doadores.
 ```{r}
-?geom_text
-
 first_ten %>% 
   ggplot(mapping = aes(x = Cidade, y = Doacoes))+
   geom_col() +
+  ylab("Quantidade de doações")
   theme(axis.text=element_text(size=8),
         axis.text.x = element_text(angle = 90, hjust = 1),
         axis.title=element_text(size=14,face="bold"))
 
 ```
+
+Bom, as 10 primeira cidades, especiamente a primeira, estrapolam nossa chance de printar um gráfico de forma que fique 
+apresentável. 
+
+#### Comparando o percentual de doações baseando-se na quantidade de habitantes.
+
+Vamos começar carregando o indicador populacional por cidades do estado do RS.
+
+```{r}
+pop_cidades <- read.csv2(file = '20170831populacao-municipio-sexo-fx-2016.csv', sep = ";")
+head(pop_cidades)
+```
+
+Bom, os nomes das cidades estão em formato normal quando que os do nosso dataset de doações estão todos em caixa alta.
+Vamos ter que trabalhar os dos dois, pois parece que alguns dos registros do dataset de doações não estão em caixa alta.
+
+```{r}
+pop_cidades$MUNICIPIO <- str_to_upper(pop_cidades$MUNICIPIO)
+doacoes$CIDADE <- str_to_upper(doacoes$CIDADE)
+
+head(pop_cidades)
+```
+
+Quase pronto, antes precisamos ter as tabelas com o mesmo nome para a coluna Municipio, hoje no dataset de doações
+está com nome de 'CIDADE' e no de pop_cidades está como 'MUNICIPIO'.
+Para padronizar, vamos renomear a tabela pop_cidade, até pelo fato do dataset estar com 'cidade no nome'.
+
+```{r}
+colnames(pop_cidades)[2]  <- "CIDADE"
+head(pop_cidades)
+```
+
+Também nos deparamos com outra situação, parece que alguns valores na tabela de doações estão com acentuação e outros não.
+```{r}
+aux <- doacoes %>%
+  filter(str_detect(CIDADE,"SÃO"))
+
+print(aux$CIDADE[1:2])
+
+aux <- doacoes %>%
+  filter(str_detect(CIDADE,"SAO"))
+
+print(aux$CIDADE[1:2])
+
+#Removendo acentuação.
+doacoes$CIDADE <- stri_trans_general(doacoes$CIDADE,"Latin-ASCII")
+
+print("VALORES COM ACENTUAÇÃO")
+doacoes %>%
+  filter(str_detect(CIDADE,"SÃO")) %>%
+  print()
+
+print("VALORES SEM ACENTUAÇÃO")
+doacoes %>%
+  filter(str_detect(CIDADE,"SAO")) %>%
+  head() %>%
+  print()
+
+pop_cidades$CIDADE <- stri_trans_general(pop_cidades$CIDADE,"Latin-ASCII")
+
+pop_cidades %>%
+  filter(str_detect(CIDADE,"GRAV")) %>%
+  head() %>%
+  print()
+
+```
+
+Perfeito, agora podemos unir a tabela de municípios com a tabela de doações.
+
+```{r}
+doacoes <- doacoes %>%
+  left_join(pop_cidades, by = "CIDADE")
+
+head(doacoes)
+```
+
 
 
 #### Analisando as doações da cidade de Porto Alegre
@@ -115,8 +193,6 @@ Vamos limitar somente nos bairros com mais de 100 doadores.
 #### Filtrando bairros
 ```{r}
 poa_bairros_df <- poa_df[ poa_df$BAIRRO %in%  names(table(poa_df$BAIRRO))[table(poa_df$BAIRRO) > 100] , ]
-
-?theme
 
 poa_bairros_df %>% 
   ggplot(mapping = aes(x = BAIRRO))+
