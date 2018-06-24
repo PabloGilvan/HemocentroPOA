@@ -19,7 +19,7 @@ library(stringr)
 library(reshape2)
 library(stringi)
 
-#Setando Encoding
+# SE ESTIVER USANDO MAC, Setando Encoding
 Sys.setlocale("LC_ALL", "pt_BR.UTF-8")
 ```
 
@@ -296,9 +296,88 @@ doacoes %>%
   labs(title="Cidades com doacoes 100% de homens")+
   ylab("Quantidade")+
   xlab("Tipo")+
+  coord_flip()+
   theme(axis.text=element_text(size=8),
         plot.title = element_text(color="red", size=12, face="bold.italic"),
         axis.title=element_text(size=14,face="bold")) 
+```
+
+#### Tipo de doações onde mulheres tiveram 100% de doações
+
+```{r}
+nomes <- c("IVOTI", "MARIANA PIMENTEL", "SANTA MARIA DO HERVAL", "SAO PEDRO DA SERRA")
+
+doacoes %>%
+  filter(CIDADE %in% nomes) %>%
+  ggplot(mapping = aes(x = TIPO))+
+  geom_bar()+
+  labs(title="Cidades com doacoes 100% de mulheres")+
+  ylab("Quantidade")+
+  xlab("Tipo")+
+  coord_flip()+
+  theme(axis.text=element_text(size=8),
+        plot.title = element_text(color="red", size=12, face="bold.italic"),
+        axis.text.x = element_text(angle = 90, hjust = 1),
+        axis.title=element_text(size=14,face="bold")) 
+```
+
+
+Nesses casos onde as mulheres tiveram doações 100% dos casos, temos o dobro de doações de onde tivemos homens com 100% das doações.
+Vamos analisar todo o dataset por tipo de doação, separando por sexo.
+
+#### Quantidade de doações x Tipo x Sexo
+```{r}
+doacoes %>%
+  ggplot(mapping = aes(x = TIPO))+
+  geom_bar()+
+  labs(title="Quantidade de doações x Tipo x Sexo")+
+  ylab("Quantidade")+
+  xlab("Tipo")+
+  coord_flip()+
+  theme(axis.text=element_text(size=5),
+        plot.title = element_text(color="red", size=12, face="bold.italic"),
+        axis.text.x = element_text(angle = 90, hjust = 1),
+        axis.title=element_text(size=14,face="bold"))+
+  facet_wrap(~ SEXO, ncol = 1)
+```
+
+Em ambos os sexos temos mais doações do tipo 'Sangue total reposição' e 'Sangue total espontânea' com o tipo 'Plaquetaferese espontânea' como o terceiro mais citado.
+
+
+### Doações e Idade
+Vamos analisar a distribuição de idade dos doadores, novamente agrupado por sexo.
+
+#### Criando função para calcular a idade dos doadores
+Nosso dataset não possuí a idade dos doadores já calculad, mas possuí a data de nascimento.
+Vamos então criar uma função para calcular a idade dos doadores.
+```{r}
+calc_idade <- function(data_str) {
+  data_nasc <- as.Date(as.character(data_str), format="%Y-%m-%d %H:%M:%S")
+  years <- as.numeric(difftime(Sys.Date(), data_nasc, unit="weeks"))/52.25
+  return(as.numeric(round(years)))
+}
+```
+
+#### Aplicando função no DF
+```{r}
+doacoes$IDADE <- sapply(doacoes$NASCIMENTO, calc_idade)
+summary(doacoes$IDADE)
+```
+
+
+#### Distribuição de idade entre os doados agrupados por sexo
+```{r}
+doacoes %>%
+  ggplot(mapping = aes(x = IDADE))+
+  geom_histogram()+
+  labs(title="Quantidade de doações x Tipo x Sexo")+
+  ylab("Quantidade")+
+  xlab("Idade")+
+  theme(axis.text=element_text(size=5),
+        plot.title = element_text(color="red", size=12, face="bold.italic"),
+        axis.text.x = element_text(angle = 90, hjust = 1),
+        axis.title=element_text(size=14,face="bold"))+
+  facet_wrap(~ SEXO, ncol = 1)
 ```
 
 
@@ -327,20 +406,6 @@ poa_bairros_df %>%
 ```
 
 
-#### Criando função para calcular a idade dos doadores
-```{r}
-calc_idade <- function(data_str) {
-  data_nasc <- as.Date(as.character(data_str), format="%Y-%m-%d %H:%M:%S")
-  years <- as.numeric(difftime(Sys.Date(), data_nasc, unit="weeks"))/52.25
-  return(as.numeric(round(years)))
-}
-```
-
-#### Aplicando função no DF
-```{r}
-doacoes$IDADE <- sapply(doacoes$NASCIMENTO, calc_idade)
-summary(doacoes$IDADE)
-```
 
 
 #### Distribuição dos dados por idade
