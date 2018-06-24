@@ -211,29 +211,77 @@ group_cidade %>%
 
 
 #### Agrupamento por CIDADE e SEXO
+Para agrupamento por cidade, vamos fazer diferente, vamos dividir nosso dataset em dois, pois temos os casos de mulheres e homens, provavelmente
+a proporção de doaçõa será diferente em uma mesma cidade para homens e para mulheres.
 ```{r}
+
+# Começamos agrupando o nosso dataset por sexo.
 group_cidade_sexo <- group_by(doacoes, CIDADE, TOTAL, TOTAL_H, TOTAL_M, SEXO)%>%
-  summarise(DOACOES=n()) %>%
-  arrange(-DOACOES)
+  summarise(DOACOES=n())
 
 group_cidade_sexo$PROPORCAO <- group_cidade_sexo$DOACOES/group_cidade_sexo$TOTAL
 
-group_cidade_sexo %>% 
-  arrange(-PROPORCAO, SEXO)
+#Ok, agora precisamos separar mulheres e homens já aproveitando para remover dados incompletos.
+group_cidade_homens <- subset(group_cidade_sexo, SEXO == 'M')
+group_cidade_homens <- group_cidade_homens[complete.cases(group_cidade_homens[,1:7]),]
+
+group_cidade_mulheres <- subset(group_cidade_sexo, SEXO == 'F')
+group_cidade_mulheres <- group_cidade_mulheres[complete.cases(group_cidade_mulheres[,1:7]),]
+
+#Agora vamos filtrar somente as 10 cidades com maiores proporções de doação para cada sexo.
+group_cidade_homens <- group_cidade_homens %>%
+  arrange(-PROPORCAO) %>%
+  head(n=10)
+
+group_cidade_mulheres <- group_cidade_mulheres %>%
+  arrange(-PROPORCAO) %>%
+  head(n=10)
+
+#Pronto, agora vamos agrupar novamente os dados para então plotarmos esses valores.
+group_cidade_sexo <- union(group_cidade_homens, group_cidade_mulheres)
+
+head(group_cidade_sexo)
 ```
 
 #### As cidades com maior proporção de doações por habitantes separados por sexo
 ```{r}
-group_cidade_sexo %>% 
-  head(n = 10) %>%
+
+plot_m <- group_cidade_sexo %>%
+  subset(SEXO == 'M') %>%
   ggplot(mapping = aes(x = CIDADE, y = PROPORCAO))+
   geom_bar(stat = "identity")+
-  ylab("Proporção")+
-  coord_flip()+
+  ylab("Masculino")+
   theme(axis.text=element_text(size=7),
         axis.text.x = element_text(angle = 90, hjust = 1),
         axis.title=element_text(size=14,face="bold"))
+
+plot_f <- group_cidade_sexo %>%
+  subset(SEXO == 'F') %>%
+  ggplot(mapping = aes(x = CIDADE, y = PROPORCAO))+
+  geom_bar(stat = "identity")+
+  ylab("Feminino")+
+  theme(axis.text=element_text(size=7),
+        axis.text.x = element_text(angle = 90, hjust = 1),
+        axis.title=element_text(size=14,face="bold"))
+
+
+grid.arrange(plot_m, plot_f, ncol = 2)
 ```
+
+
+#### Exibindo proporção de doaçoes para cada gênero em todas as 10 cidades com maior proporção para cada gênero
+```{r}
+
+group_cidade %>%
+  subset(CIDADE %in% group_cidade_sexo$CIDADE) %>%
+  ggplot(mapping = aes(x = CIDADE, y = PROPORCAO, color= SEXO, fill=SEXO))+
+  geom_bar(stat = "identity")+
+  ylab("Proporção")+
+  theme(axis.text=element_text(size=7),
+        axis.text.x = element_text(angle = 90, hjust = 1),
+        axis.title=element_text(size=14,face="bold"))  
+```
+
 
 #### Analisando as doações da cidade de Porto Alegre
 ```{r}
