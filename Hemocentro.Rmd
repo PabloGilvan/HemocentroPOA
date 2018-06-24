@@ -173,12 +173,67 @@ Perfeito, agora podemos unir a tabela de municípios com a tabela de doações.
 
 ```{r}
 doacoes <- doacoes %>%
-  left_join(pop_cidades, by = "CIDADE")
+  left_join(pop_cidades, by = "CIDADE") 
 
 head(doacoes)
 ```
 
+Agora vamos calcular a proporção de doações em relação a população da cidade.
+Vamos começar com uma análise mais ampla, vamos agrupar por cidade e depois por cidade e sexo.
 
+#### Agrupamento por CIDADE
+```{r}
+doacoes$CIDADE <- factor(doacoes$CIDADE)
+
+group_cidade <- group_by(doacoes, CIDADE, TOTAL, TOTAL_H, TOTAL_M)%>%
+  summarise(DOACOES=n()) %>%
+  arrange(-DOACOES)
+
+group_cidade$PROPORCAO <- group_cidade$DOACOES/group_cidade$TOTAL
+
+group_cidade <- group_cidade %>% 
+  arrange(-PROPORCAO)
+
+```
+
+#### As cidades com maior proporção de doações por habitantes
+```{r}
+group_cidade %>% 
+  head(n = 10) %>%
+  ggplot(mapping = aes(x = CIDADE, y = PROPORCAO))+
+  geom_bar(stat = "identity")+
+  ylab("Proporção")+
+  coord_flip()+
+  theme(axis.text=element_text(size=7),
+        axis.text.x = element_text(angle = 90, hjust = 1),
+        axis.title=element_text(size=14,face="bold"))
+```
+
+
+#### Agrupamento por CIDADE e SEXO
+```{r}
+group_cidade_sexo <- group_by(doacoes, CIDADE, TOTAL, TOTAL_H, TOTAL_M, SEXO)%>%
+  summarise(DOACOES=n()) %>%
+  arrange(-DOACOES)
+
+group_cidade_sexo$PROPORCAO <- group_cidade_sexo$DOACOES/group_cidade_sexo$TOTAL
+
+group_cidade_sexo %>% 
+  arrange(-PROPORCAO, SEXO)
+```
+
+#### As cidades com maior proporção de doações por habitantes separados por sexo
+```{r}
+group_cidade_sexo %>% 
+  head(n = 10) %>%
+  ggplot(mapping = aes(x = CIDADE, y = PROPORCAO))+
+  geom_bar(stat = "identity")+
+  ylab("Proporção")+
+  coord_flip()+
+  theme(axis.text=element_text(size=7),
+        axis.text.x = element_text(angle = 90, hjust = 1),
+        axis.title=element_text(size=14,face="bold"))
+```
 
 #### Analisando as doações da cidade de Porto Alegre
 ```{r}
