@@ -10,7 +10,6 @@ output:
 
 Análise da base de dados do hemocentro de Porto Alegre
 <br />
-<br />
 Fontes:
 <br />
 https://www.fee.rs.gov.br/indicadores/populacao/estimativas-populacionais/
@@ -47,16 +46,10 @@ A tabela parece ter uma coluna ID fora do contexto. Vamos removela.
 doacoes <- subset(doacoes, select = -c(ID) )
 ```
 <br />
-<br />
-<br />
-<br />
 #### Vamos começar analisando os dados que temos em mãos, antes de tentar qualquer associaão com o outro dataframe.
 
 ## Doações
-
 <br />
-<br />
-
 ### Doações por cidade
 #### Sumário dos dados
 ```{r}
@@ -69,11 +62,9 @@ O sumário aponta um tipo sanguineo diferente dos normais, vamos listar para ver
 summary(doacoes$TIPO_SANGUE)
 ```
 <br />
-<br />
 Ok, temos 2572 valores nulos, 14 valores Zero e dois vaores 'I'
 Temos que decidir ou não remover estes dados. Como temos vários registros e no momento não queremos analisar o
 tipo sanguineo e sim focar nas doações, vamos deixar esses valores, pois removê-los nos traria um impacto que não necessitamos no momento.
-<br />
 <br />
 #### Valores de cidades
 ```{r}
@@ -93,14 +84,12 @@ colnames(cidades) <- c("Cidade", "Doacoes")
 head(cidades)
 ```
 <br />
-<br />
 #### Ordenando as 10 principais cidades com mais doadores
 ```{r}
 order.donnations <- with(cidades, order(-Doacoes))
 first_ten <- head(cidades[order.donnations,],  10)
 first_ten
 ```
-<br />
 <br />
 Ok, temos bastante registros para plotar e não teríamos como exibir toda essa quantidade de valores únicos em um gráfico, não de forma que ficasse de fácil visualização.
 Vamos começar listando as 10 cidades com maior quantidade de doadores.
@@ -115,10 +104,8 @@ first_ten %>%
 
 ```
 <br />
-<br />
 Bom, as 10 primeira cidades, especiamente a primeira, estrapolam nossa chance de printar um gráfico de forma que fique 
 apresentável. 
-<br />
 <br />
 #### Comparando o percentual de doações baseando-se na quantidade de habitantes.
 Vamos começar carregando o indicador populacional por cidades do estado do RS.
@@ -127,7 +114,6 @@ Vamos começar carregando o indicador populacional por cidades do estado do RS.
 pop_cidades <- read.csv2(file = '20170831populacao-municipio-sexo-fx-2016.csv', sep = ";")
 head(pop_cidades)
 ```
-<br />
 <br />
 Bom, os nomes das cidades estão em formato normal quando que os do nosso dataset de doações estão todos em caixa alta.
 Vamos ter que trabalhar os dos dois, pois parece que alguns dos registros do dataset de doações não estão em caixa alta.
@@ -205,7 +191,6 @@ group_cidade <- group_cidade %>%
 
 ```
 <br />
-<br />
 #### As cidades com maior proporção de doações por habitantes
 ```{r}
 group_cidade %>% 
@@ -218,7 +203,6 @@ group_cidade %>%
         axis.text.x = element_text(angle = 90, hjust = 1),
         axis.title=element_text(size=14,face="bold"))
 ```
-<br />
 <br />
 #### Agrupamento por CIDADE e SEXO
 Para agrupamento por cidade, vamos fazer diferente, vamos dividir nosso dataset em dois, pois temos os casos de mulheres e homens, provavelmente
@@ -253,10 +237,8 @@ group_cidade_sexo <- union(group_cidade_homens, group_cidade_mulheres)
 head(group_cidade_sexo)
 ```
 <br />
-<br />
 #### As cidades com maior proporção de doações por habitantes separados por sexo
 ```{r}
-
 plot_m <- group_cidade_sexo %>%
   subset(SEXO == 'M') %>%
   ggplot(mapping = aes(x = CIDADE, y = PROPORCAO))+
@@ -279,7 +261,6 @@ plot_f <- group_cidade_sexo %>%
 grid.arrange(plot_m, plot_f, ncol = 2)
 ```
 <br />
-<br />
 #### Exibindo proporção de doações para cada gênero em todas as 10 cidades com maior proporção para cada gênero
 ```{r}
 group_cidade_sexo %>%
@@ -291,7 +272,6 @@ group_cidade_sexo %>%
         axis.text.x = element_text(angle = 90, hjust = 1),
         axis.title=element_text(size=14,face="bold"))  
 ```
-<br />
 <br />
 ### Tipos de doações
 Vamos analisar os tipos de doações e a quantidade de cada tipo. Vamos começar focando nas cidades onde as mulheres tiveram 100% das doações e onde os homens foram responsáveis por 100% delas.
@@ -313,7 +293,6 @@ doacoes %>%
         axis.title=element_text(size=14,face="bold")) 
 ```
 <br />
-<br />
 #### Tipo de doações onde mulheres tiveram 100% de doações
 ```{r}
 nomes <- c("IVOTI", "MARIANA PIMENTEL", "SANTA MARIA DO HERVAL", "SAO PEDRO DA SERRA")
@@ -332,10 +311,8 @@ doacoes %>%
         axis.title=element_text(size=14,face="bold")) 
 ```
 <br />
-<br />
 Nesses casos onde as mulheres tiveram doações 100% dos casos, temos o dobro de doações de onde tivemos homens com 100% das doações.
 Vamos analisar todo o dataset por tipo de doação, separando por sexo.
-<br />
 <br />
 #### Quantidade de doações x Tipo x Sexo
 ```{r}
@@ -355,8 +332,6 @@ doacoes %>%
 <br />
 Em ambos os sexos temos mais doações do tipo 'Sangue total reposição' e 'Sangue total espontânea' com o tipo 'Plaquetaferese espontânea' como o terceiro mais citado.
 <br />
-<br />
-<br />
 ### Doações e Idade
 #### Criando função para calcular a idade dos doadores
 Nosso dataset não possuí a idade dos doadores já calculad, mas possuí a data de nascimento.
@@ -375,7 +350,6 @@ doacoes$IDADE <- sapply(doacoes$NASCIMENTO, calc_idade)
 summary(doacoes$IDADE)
 ```
 <br />
-<br />
 #### Distribuição de doações por idade e sexo
 Vamos analisar a distribuição de idade dos doadores, novamente agrupado por sexo.
 ```{r}
@@ -393,7 +367,6 @@ doacoes %>%
         axis.title=element_text(size=14,face="bold"))
 ```
 <br />
-<br />
 #### Distribuição de idade entre os doados agrupados por sexo
 ```{r}
 doacoes %>%
@@ -409,7 +382,6 @@ doacoes %>%
   facet_wrap(~ SEXO, ncol = 1)
 ```
 <br />
-<br />
 #### Analisando as doações da cidade de Porto Alegre
 ```{r}
 poa_df <- subset(doacoes, doacoes$CIDADE == 'PORTO ALEGRE')
@@ -419,8 +391,6 @@ summary(poa_df$BAIRRO)
 ```
 Ok, temos vários resultados, não seria nada interessante colocar todos esses valores em um gráfico.
 Vamos limitar somente nos bairros com mais de 100 doadores.
-
-<br />
 <br />
 #### Filtrando bairros
 ```{r}
@@ -436,7 +406,6 @@ poa_bairros_df %>%
         axis.title=element_text(size=14,face="bold"))
 ```
 <br />
-<br />
 #### Filtrando bairros e agrupando por sexo
 ```{r}
 poa_bairros_df %>% 
@@ -449,7 +418,6 @@ poa_bairros_df %>%
         axis.title=element_text(size=14,face="bold"))
 ```
 <br />
-<br />
 #### Distribuição dos dados por idade
 ```{r}
 doacoes %>% 
@@ -460,14 +428,12 @@ doacoes %>%
         axis.title=element_text(size=14,face="bold"))
 ```
 <br />
-<br />
 #### Distribuição dos dados por idade e sexo
 ```{r}
 doacoes %>%
   ggplot(mapping = aes(SEXO, IDADE, color=SEXO))+
   geom_boxplot()
 ```
-<br />
 <br />
 #### Distribuição dos dados por idade e sexo
 ```{r}
@@ -479,7 +445,6 @@ doacoes %>%
         axis.title=element_text(size=14,face="bold"))+
   facet_wrap( ~ SEXO, ncol = 2)
 ```
-<br />
 <br />
 #### Distribuição dos dados por idade e sexo na cidade de Porto Alegre
 ```{r}
@@ -492,7 +457,6 @@ doacoes %>%
         axis.title=element_text(size=14,face="bold"))+
   facet_wrap( ~ SEXO, ncol = 2)
 ```
-<br />
 <br />
 #### Distribuição dos dados por idade e sexo nas principais cidades exceto Porto Alegre
 ```{r}
