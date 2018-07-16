@@ -62,6 +62,47 @@ O sumário aponta um tipo sanguineo diferente dos normais, vamos listar para ver
 summary(doacoes$TIPO_SANGUE)
 ```
 <br />
+
+Vamos agrupar os valors por tipo sanguíneo e verficar a proporção de cada um.
+
+#### Proporção de Tipo sanguíneo
+```{r}
+
+tipo_sangue <- subset(doacoes, TIPO_SANGUE != 'NULL') %>%
+  group_by(TIPO_SANGUE)%>%
+  summarise(QUANTIDADE=n(),
+            PROPORCAO = QUANTIDADE/nrow(subset(doacoes, TIPO_SANGUE != 'NULL')))
+ 
+tipo_sangue%>%
+ ggplot(mapping = aes(x = TIPO_SANGUE, y = PROPORCAO))+
+ geom_bar(stat = "identity")+
+ labs(title="Proporção de doação por tipo sanguíneo")+
+ ylab("Quantidade")+
+ xlab("Tipo Sanguíneo")+
+ theme(plot.title = element_text(color="red", size=12, face="bold.italic"),
+       axis.text.x = element_text(angle = 90, hjust = 1),
+       axis.title=element_text(size=14,face="bold"))
+```
+
+#### Proporção de Tipo sanguíneo por Sexo
+```{r}
+
+tipo_sangue <- subset(doacoes, TIPO_SANGUE != 'NULL') %>%
+  group_by(TIPO_SANGUE, SEXO)%>%
+  summarise(QUANTIDADE=n(),
+            PROPORCAO = QUANTIDADE/nrow(subset(doacoes, TIPO_SANGUE != 'NULL')))
+ 
+tipo_sangue%>%
+ ggplot(mapping = aes(x = TIPO_SANGUE, y = PROPORCAO, color=SEXO, fill=SEXO))+
+ geom_bar(stat = "identity")+
+ labs(title="Proporção de doação por tipo sanguíneo e sexo")+
+ ylab("Quantidade")+
+ xlab("Tipo Sanguíneo")+
+ theme(plot.title = element_text(color="red", size=12, face="bold.italic"),
+       axis.text.x = element_text(angle = 90, hjust = 1),
+       axis.title=element_text(size=14,face="bold"))
+```
+
 Ok, temos 2572 valores nulos, 14 valores Zero e dois vaores 'I'
 Temos que decidir ou não remover estes dados. Como temos vários registros e no momento não queremos analisar o
 tipo sanguineo e sim focar nas doações, vamos deixar esses valores, pois removê-los nos traria um impacto que não necessitamos no momento.
@@ -470,8 +511,73 @@ doacoes[ doacoes$CIDADE %in%  names(table(doacoes$CIDADE))[table(doacoes$CIDADE)
   facet_wrap( ~CIDADE, ncol = 2)
 ```
 
+#### Analizando o cenário de Tupandi - Tipo Sanguíneo
+```{r}
+tipo_sangue <- subset(doacoes, CIDADE == 'TUPANDI') %>%
+  group_by(TIPO_SANGUE, SEXO)%>%
+  summarise(QUANTIDADE=n())
+ 
+tipo_sangue%>%
+ ggplot(mapping = aes(x = TIPO_SANGUE, y = QUANTIDADE))+
+ geom_bar(stat = "identity")+
+  geom_text(aes(label=QUANTIDADE), vjust=-0.2, color="blue") +
+ labs(title="Quantidade de doação por tipo sanguíneo e sexo")+
+ ylab("Quantidade")+
+ xlab("Tipo Sanguíneo")+
+ theme(plot.title = element_text(color="red", size=12, face="bold.italic"),
+       axis.text.x = element_text(angle = 90, hjust = 1),
+       axis.title=element_text(size=14,face="bold"))+
+  facet_wrap(~SEXO, ncol=2)
+```
+<br /> 
+Com os resultados de Tupandi tinham apresentado um cenário bem peculiar, devido ao fato de ser uma cidade pequena e o número de doação tanto de homens como de mulheres serem iguais, poderíamos constatar que foi uma mobilização social em prol de alguém da cidade, mas não parece o caso. Ainda pode ser o caso de ser uma doação resultante de uma mobilização social de algum grupo da cidade, mas podemos ter certeza que não foi uma mobilização em prol de alguém específico.
+<br />
+Para ter certeza da última constatação, vamos listar o motivo da doação efetuada pela população de Tupandi.
+
+#### Tipo de Doação em Tupandi
+```{r}
+doacoes %>%  
+ subset(CIDADE == 'TUPANDI') %>%
+ group_by(TIPO, SEXO)%>%
+ summarise(QUANTIDADE=n())%>%
+ ggplot(mapping = aes(x = TIPO, y = QUANTIDADE))+
+  geom_bar(stat = "identity")+
+  geom_text(aes(label=QUANTIDADE), vjust=0, color="red") +
+  labs(title="Quantidade por Tipo de doação e sexo")+
+  ylab("Quantidade")+
+  xlab("Tipo Doação")+
+  theme(plot.title = element_text(color="red", size=12, face="bold.italic"),
+       axis.text.x = element_text(angle = 90, hjust = 1),
+       axis.title=element_text(size=14,face="bold"))+
+  facet_wrap(~SEXO, ncol=2)
+```
+
+#### Proporção do Tipo de Doação em Tupandi
+```{r}
+doacoes_tupandi <- subset(doacoes, CIDADE == 'TUPANDI')
+ 
+```
 
 
+Agora temos um case interessante, tanto para homens como para mulheres o tipo de doação em mais de x% dos casos é do tipo de Reposição, ou seja, tinham o objetivo de doar para alguém específico.
+Vamos analisar o tipo de doação e o tipo sanguíneo.
 
+#### Tipo de Doação em Tupandi por Tipo sanguíneo
+```{r}
+doacoes %>%  
+ subset(CIDADE == 'TUPANDI' & TIPO_SANGUE != 'NULL') %>%
+ group_by(TIPO, TIPO_SANGUE)%>%
+ summarise(QUANTIDADE=n())%>%
+ ggplot(mapping = aes(x = TIPO, y = QUANTIDADE))+
+  geom_bar(stat = "identity")+
+  geom_text(aes(label=QUANTIDADE), vjust=0, color="red") +
+  labs(title="Quantidade por Tipo de doação e Tipo Sanguíneo")+
+  ylab("Quantidade")+
+  xlab("Tipo Doação")+
+  theme(plot.title = element_text(color="red", size=12, face="bold.italic"),
+       axis.text.x = element_text(angle = 90, hjust = 1),
+       axis.title=element_text(size=14,face="bold"))+
+  facet_wrap(~TIPO_SANGUE, ncol=2)
+```
 
 
