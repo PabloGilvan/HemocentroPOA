@@ -17,7 +17,8 @@ https://www.fee.rs.gov.br/indicadores/populacao/estimativas-populacionais/
 
 #### Carregando bibliotecas
 ```{r}
-library(tidyverse)
+library(ggplot2)
+library(tidyr)
 library(gridExtra)
 library(readr)
 library(stringr)
@@ -32,18 +33,39 @@ Sys.setlocale("LC_ALL", "pt_BR.UTF-8")
 <br />
 #### Listando uma amostra dos dados para ver se está tudo ok.
 ```{r}
-doacoes <- read.csv2(file = 'doacao-Table 1.csv')
+doacoes <- read.csv2(file = 'doacoes.csv', stringsAsFactors=FALSE, fileEncoding="cp857", sep = ",")
 head(doacoes)
 ```
+<br />
+Perfeito, tive que rastrear o encoding correto para o arquivo, o cp857 foi o único que conseguiu carregar os dados com acentuação correta.
 <br />
 Quantidade de registros
 ```{r}
 nrow(doacoes)
 ```
 <br />
-A tabela parece ter uma coluna ID fora do contexto. Vamos removela. 
+Parece que alguns valores na tabela de doações estão com acentuação e outros não, outros estão com valores totalmente fora do contexto, como esperado pela leitura externa, então vamos ter que 
+trabalhar estes dados para termos consistência ao gerar gráficos e agrupamentos.
+
+Primeiro vamos renomear estas colunas, os nomes atuais não deixao o código refletir o real sentido do que está sendo feito.
 ```{r}
-doacoes <- subset(doacoes, select = -c(ID) )
+colnames(doacoes)[colnames(doacoes)=="c_residencial"] <- "cidade"
+colnames(doacoes)[colnames(doacoes)=="b_residencial"] <- "bairro"
+
+#Seto o nome das colunas para maiúsculo, acho melhor de trabalhar e visualizar no codigo.
+colnames(doacoes) <- toupper(colnames(doacoes))
+```
+
+####  Trabalhando a questão da acentuação.
+```{r}
+#Removendo acentuação.
+doacoes$CIDADE <- stri_trans_general(doacoes$CIDADE,"Latin-ASCII")
+
+
+#Convertemos colunas categóricas para factor para que o agrupamento se dê de forma mais categórica.
+doacoes$CIDADE <- as.factor(doacoes$CIDADE)
+doacoes$CIDADE <- toupper(doacoes$CIDADE)
+doacoes$ABO_DOADOR <- as.factor(doacoes$ABO_DOADOR)
 ```
 <br />
 #### Vamos começar analisando os dados que temos em mãos, antes de tentar qualquer associaão com o outro dataframe.
@@ -54,62 +76,37 @@ doacoes <- subset(doacoes, select = -c(ID) )
 #### Sumário dos dados
 ```{r}
 summary(doacoes)
+summary(doacoes$ABO_DOADOR)
 ```
 <br />
 O sumário aponta um tipo sanguineo diferente dos normais, vamos listar para ver quais valores temos.
 <br />
-```{r}
-summary(doacoes$TIPO_SANGUE)
-```
-<br />
-
-Vamos agrupar os valors por tipo sanguíneo e verficar a proporção de cada um.
-
-#### Proporção de Tipo sanguíneo
-```{r}
-
-tipo_sangue <- subset(doacoes, TIPO_SANGUE != 'NULL') %>%
-  group_by(TIPO_SANGUE)%>%
-  summarise(QUANTIDADE=n(),
-            PROPORCAO = QUANTIDADE/nrow(subset(doacoes, TIPO_SANGUE != 'NULL')))
- 
-tipo_sangue%>%
- ggplot(mapping = aes(x = TIPO_SANGUE, y = PROPORCAO))+
- geom_bar(stat = "identity")+
- labs(title="Proporção de doação por tipo sanguíneo")+
- ylab("Quantidade")+
- xlab("Tipo Sanguíneo")+
- theme(plot.title = element_text(color="red", size=12, face="bold.italic"),
-       axis.text.x = element_text(angle = 90, hjust = 1),
-       axis.title=element_text(size=14,face="bold"))
-```
-
-#### Proporção de Tipo sanguíneo por Sexo
-```{r}
-
-tipo_sangue <- subset(doacoes, TIPO_SANGUE != 'NULL') %>%
-  group_by(TIPO_SANGUE, SEXO)%>%
-  summarise(QUANTIDADE=n(),
-            PROPORCAO = QUANTIDADE/nrow(subset(doacoes, TIPO_SANGUE != 'NULL')))
- 
-tipo_sangue%>%
- ggplot(mapping = aes(x = TIPO_SANGUE, y = PROPORCAO, color=SEXO, fill=SEXO))+
- geom_bar(stat = "identity")+
- labs(title="Proporção de doação por tipo sanguíneo e sexo")+
- ylab("Quantidade")+
- xlab("Tipo Sanguíneo")+
- theme(plot.title = element_text(color="red", size=12, face="bold.italic"),
-       axis.text.x = element_text(angle = 90, hjust = 1),
-       axis.title=element_text(size=14,face="bold"))
-```
-
-Ok, temos 2572 valores nulos, 14 valores Zero e dois vaores 'I'
+Ok, temos 102 valores nulos, 132 valores Zero, 7 valores como 'Brasil', 5 valores 'O' com espaçamento a direita, 4 valores N e 12 vaores 'I'.
 Temos que decidir ou não remover estes dados. Como temos vários registros e no momento não queremos analisar o
 tipo sanguineo e sim focar nas doações, vamos deixar esses valores, pois removê-los nos traria um impacto que não necessitamos no momento.
 <br />
-#### Valores de cidades
+Vamos primeiro ajustar os valores 'O' com espaçamento para o valor correto.
 ```{r}
-cidades <- table(doacoes$CIDADE)
+doacoes$ABO_DOADOR[doacoes$ABO_DOADOR == "O "] <- "O"
+summary(doacoes$ABO_DOADOR)
+```
+
+## Analisando o perfil do doador: Cidades e Proporção de doações
+
+Vamos agora analisar os valores de doados por município, analisar não somente a quantidade doações, mas a proporção de doações baseando-se na proporção. 
+Primeiro temos que conseguir o valor populacional. Não podemos simplesmente pegar o valor populacional, mas sim o valor populacional da faixa etária aceitável para doações.
+Navegando até o site: https://www.fee.rs.gov.br/wp-content/uploads/2014/03/20170831populacao-municipio-sexo-fx-etaria.xls conseguimos os valores referênte ao estado do RS, o estado que nos interessa, visto que o hospital tem como foco os hospitais do estado, por mais que ainda forneça para outros estados o foco é estadual. 
+
+O dataset fornecido pelo link nos traz os dados agrupados por faixa etária. Agrupei, via excel mesmo, os valores referênte a faixa etária de 14 a 69 anos.
+
+Vamos começar a analisar a questão das cidades.
+
+#### Valores de cidades - Dataset Doações
+```{r}
+cidades <- doacoes %>%
+  subset(!is.null(CIDADE) & CIDADE != 'NULL')
+
+cidades <- table(cidades$CIDADE)
 head(cidades)
 ```
 <br />
@@ -131,6 +128,7 @@ order.donnations <- with(cidades, order(-Doacoes))
 first_ten <- head(cidades[order.donnations,],  10)
 first_ten
 ```
+
 <br />
 Ok, temos bastante registros para plotar e não teríamos como exibir toda essa quantidade de valores únicos em um gráfico, não de forma que ficasse de fácil visualização.
 Vamos começar listando as 10 cidades com maior quantidade de doadores.
@@ -148,11 +146,16 @@ first_ten %>%
 Bom, as 10 primeira cidades, especiamente a primeira, estrapolam nossa chance de printar um gráfico de forma que fique 
 apresentável. 
 <br />
+
 #### Comparando o percentual de doações baseando-se na quantidade de habitantes.
 Vamos começar carregando o indicador populacional por cidades do estado do RS.
 <br />
 ```{r}
-pop_cidades <- read.csv2(file = '20170831populacao-municipio-sexo-fx-2016.csv', sep = ";")
+pop_cidades <- read.csv2(file = '20170831populacao-municipio-sexo-fx-etaria2.csv', sep = ",")
+
+#Vamos validar a classe das colunas
+lapply(pop_cidades, class)
+
 head(pop_cidades)
 ```
 <br />
@@ -160,8 +163,8 @@ Bom, os nomes das cidades estão em formato normal quando que os do nosso datase
 Vamos ter que trabalhar os dos dois, pois parece que alguns dos registros do dataset de doações não estão em caixa alta.
 <br />
 ```{r}
-pop_cidades$MUNICIPIO <- str_to_upper(pop_cidades$MUNICIPIO)
-doacoes$CIDADE <- str_to_upper(doacoes$CIDADE)
+pop_cidades$MUNICÍPIO <- str_to_upper(pop_cidades$MUNICÍPIO)
+pop_cidades$MUNICÍPIO <- stri_trans_general(pop_cidades$MUNICÍPIO,"Latin-ASCII")
 
 head(pop_cidades)
 ```
@@ -171,45 +174,25 @@ estão com nome de 'CIDADE' e no de pop_cidades está como 'MUNICIPIO'.
 Para padronizar, vamos renomear a tabela pop_cidade, até pelo fato do dataset estar com 'cidade' no nome.
 <br />
 ```{r}
+colnames(pop_cidades)[1]  <- "CODIGO"
 colnames(pop_cidades)[2]  <- "CIDADE"
+colnames(pop_cidades)[4]  <- "TOTAL_H"
+colnames(pop_cidades)[5]  <- "TOTAL_M"
+
+#Listando somente as colunas que nos interessam
+pop_cidades <- pop_cidades[,c("CODIGO","CIDADE","TOTAL", "TOTAL_H", "TOTAL_M")]
+
 head(pop_cidades)
-```
-<br />
-Também nos deparamos com outra situação, parece que alguns valores na tabela de doações estão com acentuação e outros não.
-```{r}
-aux <- doacoes %>%
-  filter(str_detect(CIDADE,"SÃO"))
-
-print(aux$CIDADE[1:2])
-
-aux <- doacoes %>%
-  filter(str_detect(CIDADE,"SAO"))
-
-print(aux$CIDADE[1:2])
-
-#Removendo acentuação.
-doacoes$CIDADE <- stri_trans_general(doacoes$CIDADE,"Latin-ASCII")
-
-# VALORES COM ACENTUAÇÃO
-doacoes %>%
-  filter(str_detect(CIDADE,"GRAVATAÍ")) %>%
-  head() %>%
-  print()
-
-# VALORES SEM ACENTUAÇÃO
-doacoes %>%
-  filter(str_detect(CIDADE,"GRAVATAI")) %>%
-  head() %>%
-  print()
-  
-pop_cidades$CIDADE <- stri_trans_general(pop_cidades$CIDADE,"Latin-ASCII")
 ```
 <br />
 Perfeito, agora podemos unir a tabela de municípios com a tabela de doações.
 <br />
 ```{r}
 doacoes <- doacoes %>%
-  left_join(pop_cidades, by = "CIDADE") 
+  subset(!is.null(CIDADE) & CIDADE != 'NULL')
+
+doacoes <- doacoes %>%
+  dplyr::left_join(pop_cidades, by = "CIDADE") 
 
 head(doacoes)
 ```
@@ -219,16 +202,17 @@ Vamos começar com uma análise mais ampla, vamos agrupar por cidade e depois po
 <br />
 #### Agrupamento por CIDADE
 ```{r}
-doacoes$CIDADE <- factor(doacoes$CIDADE)
+doacoes$CIDADE <- as.factor(doacoes$CIDADE)
 
-group_cidade <- group_by(doacoes, CIDADE, TOTAL, TOTAL_H, TOTAL_M)%>%
-  summarise(DOACOES=n()) %>%
-  arrange(-DOACOES)
+group_cidade <- dplyr::group_by(doacoes, CIDADE, TOTAL, TOTAL_H, TOTAL_M)%>%
+  dplyr::summarise(DOACOES=n()) %>%
+  dplyr::arrange(-DOACOES)
 
-group_cidade$PROPORCAO <- group_cidade$DOACOES/group_cidade$TOTAL
+
+group_cidade$PROPORCAO <- (group_cidade$DOACOES/group_cidade$TOTAL)
 
 group_cidade <- group_cidade %>% 
-  arrange(-PROPORCAO)
+  dplyr::arrange(-PROPORCAO)
 
 ```
 <br />
@@ -251,8 +235,8 @@ a proporção de doação será diferente em uma mesma cidade para homens e para
 ```{r}
 
 # Começamos agrupando o nosso dataset por sexo.
-group_cidade_sexo <- group_by(doacoes, CIDADE, TOTAL, TOTAL_H, TOTAL_M, SEXO)%>%
-  summarise(DOACOES=n())
+group_cidade_sexo <- dplyr::group_by(doacoes, CIDADE, TOTAL, TOTAL_H, TOTAL_M, SEXO)%>%
+  dplyr::summarise(DOACOES=n())
 
 group_cidade_sexo$PROPORCAO <- group_cidade_sexo$DOACOES/group_cidade_sexo$TOTAL
 
@@ -265,15 +249,15 @@ group_cidade_mulheres <- group_cidade_mulheres[complete.cases(group_cidade_mulhe
 
 #Agora vamos filtrar somente as 10 cidades com maiores proporções de doação para cada sexo.
 group_cidade_homens <- group_cidade_homens %>%
-  arrange(-PROPORCAO) %>%
+  dplyr::arrange(-PROPORCAO) %>%
   head(n=10)
 
 group_cidade_mulheres <- group_cidade_mulheres %>%
-  arrange(-PROPORCAO) %>%
+  dplyr::arrange(-PROPORCAO) %>%
   head(n=10)
 
 #Pronto, agora vamos agrupar novamente os dados para então plotarmos esses valores.
-group_cidade_sexo <- union(group_cidade_homens, group_cidade_mulheres)
+group_cidade_sexo <- dplyr::union(group_cidade_homens, group_cidade_mulheres)
 
 head(group_cidade_sexo)
 ```
@@ -319,11 +303,11 @@ Vamos analisar os tipos de doações e a quantidade de cada tipo. Vamos começar
 <br />
 #### Tipo de doações onde homens tiveram 100% de doações
 ```{r}
-nomes <- c("CAPAO BONITO DO SUL", "MORRO REUTER", "PARAI", "SENTINELA DO SUL")
+nomes <- c("ESTEIO", "MORRO REUTER", "FELIZ", "TRES FORQUILHAS")
 
 doacoes %>%
-  filter(CIDADE %in% nomes) %>%
-  ggplot(mapping = aes(x = TIPO))+
+  dplyr::filter(CIDADE %in% nomes) %>%
+  ggplot(mapping = aes(x = TIPO_DOACAO))+
   geom_bar()+
   labs(title="Cidades com doacoes 100% de homens")+
   ylab("Quantidade")+
@@ -336,11 +320,11 @@ doacoes %>%
 <br />
 #### Tipo de doações onde mulheres tiveram 100% de doações
 ```{r}
-nomes <- c("IVOTI", "MARIANA PIMENTEL", "SANTA MARIA DO HERVAL", "SAO PEDRO DA SERRA")
+nomes <- c("BOM PRINCIPIO", "BOM RETIRO DO SUL", "SANTA MARIA DO HERVAL", "MINAS DO LEAO")
 
 doacoes %>%
-  filter(CIDADE %in% nomes) %>%
-  ggplot(mapping = aes(x = TIPO))+
+  dplyr::filter(CIDADE %in% nomes) %>%
+  ggplot(mapping = aes(x = TIPO_DOACAO))+
   geom_bar()+
   labs(title="Cidades com doacoes 100% de mulheres")+
   ylab("Quantidade")+
@@ -358,7 +342,7 @@ Vamos analisar todo o dataset por tipo de doação, separando por sexo.
 #### Quantidade de doações x Tipo x Sexo
 ```{r}
 doacoes %>%
-  ggplot(mapping = aes(x = TIPO))+
+  ggplot(mapping = aes(x = TIPO_DOACAO))+
   geom_bar()+
   labs(title="Quantidade de doações x Tipo x Sexo")+
   ylab("Quantidade")+
@@ -379,7 +363,7 @@ Nosso dataset não possuí a idade dos doadores já calculad, mas possuí a data
 Vamos então criar uma função para calcular a idade dos doadores.
 ```{r}
 calc_idade <- function(data_str) {
-  data_nasc <- as.Date(as.character(data_str), format="%Y-%m-%d %H:%M:%S")
+  data_nasc <- as.Date(as.character(data_str), format="%d/%m/%Y")
   years <- as.numeric(difftime(Sys.Date(), data_nasc, unit="weeks"))/52.25
   return(as.numeric(round(years)))
 }
@@ -387,7 +371,7 @@ calc_idade <- function(data_str) {
 <br />
 #### Aplicando função no DF
 ```{r}
-doacoes$IDADE <- sapply(doacoes$NASCIMENTO, calc_idade)
+doacoes$IDADE <- sapply(doacoes$DATA_NASC, calc_idade)
 summary(doacoes$IDADE)
 ```
 <br />
@@ -395,8 +379,8 @@ summary(doacoes$IDADE)
 Vamos analisar a distribuição de idade dos doadores, novamente agrupado por sexo.
 ```{r}
 doacoes %>%
-  group_by(IDADE, SEXO)%>%
-  summarise(DOACOES=n()) %>%
+  dplyr::group_by(IDADE, SEXO)%>%
+  dplyr::summarise(DOACOES=n()) %>%
   ggplot(mapping = aes(x = IDADE, y = DOACOES, color=SEXO))+
   geom_line()+
   labs(title="Quantidade de doacoes x Idade x Sexo")+
@@ -425,8 +409,10 @@ doacoes %>%
 <br />
 #### Analisando as doações da cidade de Porto Alegre
 ```{r}
-poa_df <- subset(doacoes, doacoes$CIDADE == 'PORTO ALEGRE')
+poa_df <- doacoes %>%
+  subset(doacoes$CIDADE == 'PORTO ALEGRE' & doacoes$BAIRRO != 'NULL' & !is.null(doacoes$BAIRRO))
 
+poa_df$BAIRRO <- as.factor(poa_df$BAIRRO)
 print('Sumário por bairros.')
 summary(poa_df$BAIRRO)
 ```
@@ -435,7 +421,7 @@ Vamos limitar somente nos bairros com mais de 100 doadores.
 <br />
 #### Filtrando bairros
 ```{r}
-poa_bairros_df <- poa_df[ poa_df$BAIRRO %in%  names(table(poa_df$BAIRRO))[table(poa_df$BAIRRO) > 100] , ]
+poa_bairros_df <- poa_df[ poa_df$BAIRRO %in%  names(table(poa_df$BAIRRO))[table(poa_df$BAIRRO) > 2197] , ]
 
 poa_bairros_df %>% 
   ggplot(mapping = aes(x = BAIRRO))+
@@ -501,7 +487,7 @@ doacoes %>%
 <br />
 #### Distribuição dos dados por idade e sexo nas principais cidades exceto Porto Alegre
 ```{r}
-doacoes[ doacoes$CIDADE %in%  names(table(doacoes$CIDADE))[table(doacoes$CIDADE) > 250] , ] %>% 
+doacoes[ doacoes$CIDADE %in%  names(table(doacoes$CIDADE))[table(doacoes$CIDADE) > 2197] , ] %>% 
   subset(CIDADE != 'PORTO ALEGRE') %>%
   ggplot(mapping = aes(x = IDADE))+
   geom_histogram(binwidth = 1)+
@@ -513,12 +499,12 @@ doacoes[ doacoes$CIDADE %in%  names(table(doacoes$CIDADE))[table(doacoes$CIDADE)
 
 #### Analizando o cenário de Tupandi - Tipo Sanguíneo
 ```{r}
-tipo_sangue <- subset(doacoes, CIDADE == 'TUPANDI') %>%
-  group_by(TIPO_SANGUE, SEXO)%>%
-  summarise(QUANTIDADE=n())
+tipo_sangue <- subset(doacoes, CIDADE == 'SERTAO SANTANA') %>%
+  dplyr::group_by(ABO_DOADOR, SEXO)%>%
+  dplyr::summarise(QUANTIDADE=n())
  
 tipo_sangue%>%
- ggplot(mapping = aes(x = TIPO_SANGUE, y = QUANTIDADE))+
+ ggplot(mapping = aes(x = ABO_DOADOR, y = QUANTIDADE))+
  geom_bar(stat = "identity")+
   geom_text(aes(label=QUANTIDADE), vjust=-0.2, color="blue") +
  labs(title="Quantidade de doação por tipo sanguíneo e sexo")+
@@ -537,10 +523,10 @@ Para ter certeza da última constatação, vamos listar o motivo da doação efe
 #### Tipo de Doação em Tupandi
 ```{r}
 doacoes %>%  
- subset(CIDADE == 'TUPANDI') %>%
- group_by(TIPO, SEXO)%>%
- summarise(QUANTIDADE=n())%>%
- ggplot(mapping = aes(x = TIPO, y = QUANTIDADE))+
+ subset(CIDADE == 'SERTAO SANTANA') %>%
+ dplyr::group_by(TIPO_DOACAO, SEXO)%>%
+ dplyr::summarise(QUANTIDADE=n())%>%
+ ggplot(mapping = aes(x = TIPO_DOACAO, y = QUANTIDADE))+
   geom_bar(stat = "identity")+
   geom_text(aes(label=QUANTIDADE), vjust=0, color="red") +
   labs(title="Quantidade por Tipo de doação e sexo")+
@@ -554,7 +540,7 @@ doacoes %>%
 
 #### Proporção do Tipo de Doação em Tupandi
 ```{r}
-doacoes_tupandi <- subset(doacoes, CIDADE == 'TUPANDI')
+maior_prop_doacoes <- subset(doacoes, CIDADE == 'SERTAO SANTANA')
  
 ```
 
@@ -565,10 +551,10 @@ Vamos analisar o tipo de doação e o tipo sanguíneo.
 #### Tipo de Doação em Tupandi por Tipo sanguíneo
 ```{r}
 doacoes %>%  
- subset(CIDADE == 'TUPANDI' & TIPO_SANGUE != 'NULL') %>%
- group_by(TIPO, TIPO_SANGUE)%>%
- summarise(QUANTIDADE=n())%>%
- ggplot(mapping = aes(x = TIPO, y = QUANTIDADE))+
+ subset(CIDADE == 'SERTAO SANTANA' & ABO_DOADOR != 'NULL') %>%
+ dplyr::group_by(TIPO_DOACAO, ABO_DOADOR)%>%
+ dplyr::summarise(QUANTIDADE=n())%>%
+ ggplot(mapping = aes(x = TIPO_DOACAO, y = QUANTIDADE))+
   geom_bar(stat = "identity")+
   geom_text(aes(label=QUANTIDADE), vjust=0, color="red") +
   labs(title="Quantidade por Tipo de doação e Tipo Sanguíneo")+
