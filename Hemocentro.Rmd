@@ -1,5 +1,6 @@
 ---
 title: "Hemocentro"
+author: "Pablo Gilvan Borges"
 output:
   html_document:
     df_print: paged
@@ -8,9 +9,14 @@ output:
   word_document: default
 ---
 
-Análise da base de dados do hemocentro de Porto Alegre
+Análise da base de dados do hemocentro de Porto Alegre. Estes dados compoem a base de dados referênte a doações feitas no ano de 2017.
+Todo os dados foram obtidos com permissão da diretoria do hospital. Conseguimos os dados pois estou iniciando um grupo de estudos na Universidade Feevale, junto 
+com outros alunos, para que consigamos, através de uma análise extensa e minuciosa, gerar valor para o hospital traçando perfís de doadores e tentando encontrar
+padrões que ocasionaram tanto doações como perdas de materiais. A análise que se segue foi toda feita por minha pessoa com a finalidade de servir como overview e início 
+das pesquisas para o grupo aqui citado.
+
 <br />
-Fontes:
+Fontes externas:
 <br />
 https://www.fee.rs.gov.br/indicadores/populacao/estimativas-populacionais/
 
@@ -29,25 +35,37 @@ library(stringi)
 Sys.setlocale("LC_ALL", "pt_BR.UTF-8")
 ```
 
+
 ### Carregando dados
 <br />
+
+
 #### Listando uma amostra dos dados para ver se está tudo ok.
 ```{r}
 doacoes <- read.csv2(file = 'doacoes.csv', stringsAsFactors=FALSE, fileEncoding="cp857", sep = ",")
 head(doacoes)
 ```
+
+
 <br />
 Perfeito, tive que rastrear o encoding correto para o arquivo, o cp857 foi o único que conseguiu carregar os dados com acentuação correta.
+
 <br />
 Quantidade de registros
+
+
 ```{r}
 nrow(doacoes)
 ```
+
+
 <br />
 Parece que alguns valores na tabela de doações estão com acentuação e outros não, outros estão com valores totalmente fora do contexto, como esperado pela leitura externa, então vamos ter que 
 trabalhar estes dados para termos consistência ao gerar gráficos e agrupamentos.
 
-Primeiro vamos renomear estas colunas, os nomes atuais não deixao o código refletir o real sentido do que está sendo feito.
+Primeiro vamos renomear estas colunas, os nomes atuais não deixam o código refletir o real sentido do que está sendo feito.
+
+
 ```{r}
 colnames(doacoes)[colnames(doacoes)=="c_residencial"] <- "cidade"
 colnames(doacoes)[colnames(doacoes)=="b_residencial"] <- "bairro"
@@ -56,36 +74,59 @@ colnames(doacoes)[colnames(doacoes)=="b_residencial"] <- "bairro"
 colnames(doacoes) <- toupper(colnames(doacoes))
 ```
 
+
 ####  Trabalhando a questão da acentuação.
 ```{r}
 #Removendo acentuação.
 doacoes$CIDADE <- stri_trans_general(doacoes$CIDADE,"Latin-ASCII")
 
 
-#Convertemos colunas categóricas para factor para que o agrupamento se dê de forma mais categórica.
+#Convertemos colunas categóricas para factor para que consigamos agrupar os valores como categorias nos gráficos.
 doacoes$CIDADE <- as.factor(doacoes$CIDADE)
 doacoes$CIDADE <- toupper(doacoes$CIDADE)
 doacoes$ABO_DOADOR <- as.factor(doacoes$ABO_DOADOR)
 ```
-<br />
-#### Vamos começar analisando os dados que temos em mãos, antes de tentar qualquer associaão com o outro dataframe.
 
+
+<br />
 ## Doações
+
+Vamos analisar o perfil dos usuários, levando em conta coisas como Cidade, Bairros, Idade, Sexo e Tipo de Doação. A ideia em sí é tentar achar um padrão
+de doadores e demais padrões que possam se apresentar.
+
 <br />
 ### Doações por cidade
+
+Começamos então traçando o perfil por cidade. Quais as cidades com maior quantidade de doadores? O que poderia ter influênciado tal quantidade de doações?
+<br />
 #### Sumário dos dados
+Vamos listar um sumário dos dados, ter uma ideia do conjunto de dados que temos pela frente.
+
+
 ```{r}
 summary(doacoes)
+```
+
+
+<br />
+Ok, vamos focar em um dado mais específico: Tipo sanguíneo(ABO_DOADOR).
+O sumário aponta alguns tipos sanguineos diferente dos existentes, vamos listar somente isso para ver quais valores temos.
+<br />
+
+
+```{r}
 summary(doacoes$ABO_DOADOR)
 ```
-<br />
-O sumário aponta um tipo sanguineo diferente dos normais, vamos listar para ver quais valores temos.
+
+
 <br />
 Ok, temos 102 valores nulos, 132 valores Zero, 7 valores como 'Brasil', 5 valores 'O' com espaçamento a direita, 4 valores N e 12 vaores 'I'.
 Temos que decidir ou não remover estes dados. Como temos vários registros e no momento não queremos analisar o
 tipo sanguineo e sim focar nas doações, vamos deixar esses valores, pois removê-los nos traria um impacto que não necessitamos no momento.
 <br />
 Vamos primeiro ajustar os valores 'O' com espaçamento para o valor correto.
+
+
 ```{r}
 doacoes$ABO_DOADOR[doacoes$ABO_DOADOR == "O "] <- "O"
 summary(doacoes$ABO_DOADOR)
@@ -93,11 +134,12 @@ summary(doacoes$ABO_DOADOR)
 
 ## Analisando o perfil do doador: Cidades e Proporção de doações
 
-Vamos agora analisar os valores de doados por município, analisar não somente a quantidade doações, mas a proporção de doações baseando-se na proporção. 
+Vamos agora analisar os valores de doados por município, analisar não somente a quantidade doações, mas a proporção de doações baseando-se na quantidade populacional e a quantidade de doações, pois seria injusto dizer que Porto Alegre é a cidade que mais contribui para a reposição de sangue quando a mesma tem muito mais habitantes que as demais cidades.
+
 Primeiro temos que conseguir o valor populacional. Não podemos simplesmente pegar o valor populacional, mas sim o valor populacional da faixa etária aceitável para doações.
 Navegando até o site: https://www.fee.rs.gov.br/wp-content/uploads/2014/03/20170831populacao-municipio-sexo-fx-etaria.xls conseguimos os valores referênte ao estado do RS, o estado que nos interessa, visto que o hospital tem como foco os hospitais do estado, por mais que ainda forneça para outros estados o foco é estadual. 
 
-O dataset fornecido pelo link nos traz os dados agrupados por faixa etária. Agrupei, via excel mesmo, os valores referênte a faixa etária de 14 a 69 anos.
+O dataset fornecido pelo link nos traz os dados agrupados por faixa etária. Agrupei, via excel mesmo, os valores referênte a faixa etária de 14 a 69 anos, tive que partir dos 14 anos pois o grupo do pessoal de 18 anos está contido nessa faixa etária.
 
 Vamos começar a analisar a questão das cidades.
 
@@ -106,32 +148,51 @@ Vamos começar a analisar a questão das cidades.
 cidades <- doacoes %>%
   subset(!is.null(CIDADE) & CIDADE != 'NULL')
 
+# Salvamos temporariamente o dataframe filtrado na variável 'cidades', assim evitamos de ter várias coisas na memória, contando que temos uma quantidade grande de dados(para um computador convencional).
 cidades <- table(cidades$CIDADE)
 head(cidades)
 ```
+
+
 <br />
 #### Quantidade de cidades
 ```{r}
 length(cidades)
 ```
+
+
 <br />
 Agora vamos pegar esse agrupamento de Cidade/Doacoes que está em formato Table e transformar para um Dataframe, para conseguir melhor trabalhar com os dados.
+<br />
+
+
 ```{r}
 cidades <- as.data.frame(cidades)
 colnames(cidades) <- c("Cidade", "Doacoes")
 head(cidades)
 ```
+
+
 <br />
 #### Ordenando as 10 principais cidades com mais doadores
+Ok, temos bastante registros para plotar e não teríamos como exibir toda essa quantidade de valores únicos em um gráfico, não de forma que ficasse de fácil visualização.
+Vamos começar listando as 10 cidades com maior quantidade de doadores.
+<br />
+Como já podemos imaginar, as cidades com maior quantidade populacional vão se destacar nesse gráfico, mas mesmo assim vamos listá-las.
+
+
 ```{r}
 order.donnations <- with(cidades, order(-Doacoes))
 first_ten <- head(cidades[order.donnations,],  10)
 first_ten
 ```
 
+
 <br />
-Ok, temos bastante registros para plotar e não teríamos como exibir toda essa quantidade de valores únicos em um gráfico, não de forma que ficasse de fácil visualização.
-Vamos começar listando as 10 cidades com maior quantidade de doadores.
+Acima podemos notar todas as cidades que compoem o Vale dos Sinos e a Grande Porto Alegre, o polo de cidades central do estado.
+<br />
+
+
 ```{r}
 first_ten %>% 
   ggplot(mapping = aes(x = Cidade, y = Doacoes))+
@@ -142,14 +203,16 @@ first_ten %>%
         axis.title=element_text(size=14,face="bold"))
 
 ```
+
+
 <br />
-Bom, as 10 primeira cidades, especiamente a primeira, estrapolam nossa chance de printar um gráfico de forma que fique 
-apresentável. 
-<br />
+Bom, nada de mais, é de esperar que tais cidades apareçam como as cidades com maior quantidade de doadores, visto sua população. Vamos partir para algo mais interessante: vamos analisar as 10 cidades onde temos uma proporção de doações maior, em relação a quantidade de habitantes.
 
 #### Comparando o percentual de doações baseando-se na quantidade de habitantes.
-Vamos começar carregando o indicador populacional por cidades do estado do RS.
+Vamos começar carregando o indicador populacional por cidades do estado do RS. Para isso vamos usar o conjunto de dados citados acima, já trabalhado para que forneça os dados necessários.
 <br />
+
+
 ```{r}
 pop_cidades <- read.csv2(file = '20170831populacao-municipio-sexo-fx-etaria2.csv', sep = ",")
 
@@ -158,21 +221,29 @@ lapply(pop_cidades, class)
 
 head(pop_cidades)
 ```
+
+
 <br />
 Bom, os nomes das cidades estão em formato normal quando que os do nosso dataset de doações estão todos em caixa alta.
-Vamos ter que trabalhar os dos dois, pois parece que alguns dos registros do dataset de doações não estão em caixa alta.
+Vamos ter que trabalhar os dos dois, pois parece que alguns dos registros do dataset de doações não estão em caixa alta, fora a questão de acentuação.
 <br />
+
+
 ```{r}
 pop_cidades$MUNICÍPIO <- str_to_upper(pop_cidades$MUNICÍPIO)
 pop_cidades$MUNICÍPIO <- stri_trans_general(pop_cidades$MUNICÍPIO,"Latin-ASCII")
 
 head(pop_cidades)
 ```
+
+
 <br />
 Quase pronto, antes precisamos ter as tabelas com o mesmo nome para a coluna Municipio, hoje no dataset de doações
 estão com nome de 'CIDADE' e no de pop_cidades está como 'MUNICIPIO'.
 Para padronizar, vamos renomear a tabela pop_cidade, até pelo fato do dataset estar com 'cidade' no nome.
 <br />
+
+
 ```{r}
 colnames(pop_cidades)[1]  <- "CODIGO"
 colnames(pop_cidades)[2]  <- "CIDADE"
@@ -184,9 +255,13 @@ pop_cidades <- pop_cidades[,c("CODIGO","CIDADE","TOTAL", "TOTAL_H", "TOTAL_M")]
 
 head(pop_cidades)
 ```
+
+
 <br />
 Perfeito, agora podemos unir a tabela de municípios com a tabela de doações.
 <br />
+
+
 ```{r}
 doacoes <- doacoes %>%
   subset(!is.null(CIDADE) & CIDADE != 'NULL')
@@ -196,10 +271,15 @@ doacoes <- doacoes %>%
 
 head(doacoes)
 ```
+
+
 <br />
 Agora vamos calcular a proporção de doações em relação a população da cidade.
 Vamos começar com uma análise mais ampla, vamos agrupar por cidade e depois por cidade e sexo.
 <br />
+
+
+
 #### Agrupamento por CIDADE
 ```{r}
 doacoes$CIDADE <- as.factor(doacoes$CIDADE)
@@ -216,6 +296,8 @@ group_cidade <- group_cidade %>%
 
 ```
 <br />
+
+
 #### As cidades com maior proporção de doações por habitantes
 ```{r}
 group_cidade %>% 
@@ -228,10 +310,13 @@ group_cidade %>%
         axis.text.x = element_text(angle = 90, hjust = 1),
         axis.title=element_text(size=14,face="bold"))
 ```
+
 <br />
 #### Agrupamento por CIDADE e SEXO
 Para agrupamento por cidade, vamos fazer diferente, vamos dividir nosso dataset em dois, pois temos os casos de mulheres e homens, provavelmente
 a proporção de doação será diferente em uma mesma cidade para homens e para mulheres.
+
+
 ```{r}
 
 # Começamos agrupando o nosso dataset por sexo.
@@ -261,6 +346,8 @@ group_cidade_sexo <- dplyr::union(group_cidade_homens, group_cidade_mulheres)
 
 head(group_cidade_sexo)
 ```
+
+
 <br />
 #### As cidades com maior proporção de doações por habitantes separados por sexo
 ```{r}
@@ -285,6 +372,8 @@ plot_f <- group_cidade_sexo %>%
 
 grid.arrange(plot_m, plot_f, ncol = 2)
 ```
+
+
 <br />
 #### Exibindo proporção de doações para cada gênero em todas as 10 cidades com maior proporção para cada gênero
 ```{r}
@@ -297,10 +386,14 @@ group_cidade_sexo %>%
         axis.text.x = element_text(angle = 90, hjust = 1),
         axis.title=element_text(size=14,face="bold"))  
 ```
+
+
 <br />
 ### Tipos de doações
 Vamos analisar os tipos de doações e a quantidade de cada tipo. Vamos começar focando nas cidades onde as mulheres tiveram 100% das doações e onde os homens foram responsáveis por 100% delas.
 <br />
+
+
 #### Tipo de doações onde homens tiveram 100% de doações
 ```{r}
 nomes <- c("ESTEIO", "MORRO REUTER", "FELIZ", "TRES FORQUILHAS")
@@ -317,6 +410,8 @@ doacoes %>%
         plot.title = element_text(color="red", size=12, face="bold.italic"),
         axis.title=element_text(size=14,face="bold")) 
 ```
+
+
 <br />
 #### Tipo de doações onde mulheres tiveram 100% de doações
 ```{r}
@@ -335,10 +430,14 @@ doacoes %>%
         axis.text.x = element_text(angle = 90, hjust = 1),
         axis.title=element_text(size=14,face="bold")) 
 ```
+
+
 <br />
 Nesses casos onde as mulheres tiveram doações 100% dos casos, temos o dobro de doações de onde tivemos homens com 100% das doações.
 Vamos analisar todo o dataset por tipo de doação, separando por sexo.
 <br />
+
+
 #### Quantidade de doações x Tipo x Sexo
 ```{r}
 doacoes %>%
@@ -354,9 +453,13 @@ doacoes %>%
         axis.title=element_text(size=14,face="bold"))+
   facet_wrap(~ SEXO, ncol = 1)
 ```
+
+
 <br />
 Em ambos os sexos temos mais doações do tipo 'Sangue total reposição' e 'Sangue total espontânea' com o tipo 'Plaquetaferese espontânea' como o terceiro mais citado.
 <br />
+
+
 ### Doações e Idade
 #### Criando função para calcular a idade dos doadores
 Nosso dataset não possuí a idade dos doadores já calculad, mas possuí a data de nascimento.
@@ -368,12 +471,16 @@ calc_idade <- function(data_str) {
   return(as.numeric(round(years)))
 }
 ```
+
+
 <br />
 #### Aplicando função no DF
 ```{r}
 doacoes$IDADE <- sapply(doacoes$DATA_NASC, calc_idade)
 summary(doacoes$IDADE)
 ```
+
+
 <br />
 #### Distribuição de doações por idade e sexo
 Vamos analisar a distribuição de idade dos doadores, novamente agrupado por sexo.
@@ -391,6 +498,8 @@ doacoes %>%
         axis.text.x = element_text(angle = 90, hjust = 1),
         axis.title=element_text(size=14,face="bold"))
 ```
+
+
 <br />
 #### Distribuição de idade entre os doados agrupados por sexo
 ```{r}
@@ -406,6 +515,8 @@ doacoes %>%
         axis.title=element_text(size=14,face="bold"))+
   facet_wrap(~ SEXO, ncol = 1)
 ```
+
+
 <br />
 #### Analisando as doações da cidade de Porto Alegre
 ```{r}
@@ -416,9 +527,14 @@ poa_df$BAIRRO <- as.factor(poa_df$BAIRRO)
 print('Sumário por bairros.')
 summary(poa_df$BAIRRO)
 ```
+
+
+<br />
 Ok, temos vários resultados, não seria nada interessante colocar todos esses valores em um gráfico.
 Vamos limitar somente nos bairros com mais de 100 doadores.
 <br />
+
+
 #### Filtrando bairros
 ```{r}
 poa_bairros_df <- poa_df[ poa_df$BAIRRO %in%  names(table(poa_df$BAIRRO))[table(poa_df$BAIRRO) > 2197] , ]
@@ -432,6 +548,8 @@ poa_bairros_df %>%
         axis.text.x = element_text(angle = 90, hjust = 1),
         axis.title=element_text(size=14,face="bold"))
 ```
+
+
 <br />
 #### Filtrando bairros e agrupando por sexo
 ```{r}
@@ -444,6 +562,8 @@ poa_bairros_df %>%
         axis.text.x = element_text(angle = 90, hjust = 1),
         axis.title=element_text(size=14,face="bold"))
 ```
+
+
 <br />
 #### Distribuição dos dados por idade
 ```{r}
@@ -454,6 +574,8 @@ doacoes %>%
   theme(axis.text=element_text(size=7),
         axis.title=element_text(size=14,face="bold"))
 ```
+
+
 <br />
 #### Distribuição dos dados por idade e sexo
 ```{r}
@@ -461,6 +583,8 @@ doacoes %>%
   ggplot(mapping = aes(SEXO, IDADE, color=SEXO))+
   geom_boxplot()
 ```
+
+
 <br />
 #### Distribuição dos dados por idade e sexo
 ```{r}
@@ -472,6 +596,8 @@ doacoes %>%
         axis.title=element_text(size=14,face="bold"))+
   facet_wrap( ~ SEXO, ncol = 2)
 ```
+
+
 <br />
 #### Distribuição dos dados por idade e sexo na cidade de Porto Alegre
 ```{r}
@@ -484,6 +610,8 @@ doacoes %>%
         axis.title=element_text(size=14,face="bold"))+
   facet_wrap( ~ SEXO, ncol = 2)
 ```
+
+
 <br />
 #### Distribuição dos dados por idade e sexo nas principais cidades exceto Porto Alegre
 ```{r}
@@ -497,6 +625,8 @@ doacoes[ doacoes$CIDADE %in%  names(table(doacoes$CIDADE))[table(doacoes$CIDADE)
   facet_wrap( ~CIDADE, ncol = 2)
 ```
 
+
+<br />
 #### Analizando o cenário de Tupandi - Tipo Sanguíneo
 ```{r}
 tipo_sangue <- subset(doacoes, CIDADE == 'SERTAO SANTANA') %>%
@@ -515,10 +645,14 @@ tipo_sangue%>%
        axis.title=element_text(size=14,face="bold"))+
   facet_wrap(~SEXO, ncol=2)
 ```
+
+
 <br /> 
 Com os resultados de Tupandi tinham apresentado um cenário bem peculiar, devido ao fato de ser uma cidade pequena e o número de doação tanto de homens como de mulheres serem iguais, poderíamos constatar que foi uma mobilização social em prol de alguém da cidade, mas não parece o caso. Ainda pode ser o caso de ser uma doação resultante de uma mobilização social de algum grupo da cidade, mas podemos ter certeza que não foi uma mobilização em prol de alguém específico.
 <br />
 Para ter certeza da última constatação, vamos listar o motivo da doação efetuada pela população de Tupandi.
+<br />
+
 
 #### Tipo de Doação em Tupandi
 ```{r}
@@ -538,6 +672,7 @@ doacoes %>%
   facet_wrap(~SEXO, ncol=2)
 ```
 
+
 #### Proporção do Tipo de Doação em Tupandi
 ```{r}
 maior_prop_doacoes <- subset(doacoes, CIDADE == 'SERTAO SANTANA')
@@ -545,8 +680,11 @@ maior_prop_doacoes <- subset(doacoes, CIDADE == 'SERTAO SANTANA')
 ```
 
 
+<br />
 Agora temos um case interessante, tanto para homens como para mulheres o tipo de doação em mais de x% dos casos é do tipo de Reposição, ou seja, tinham o objetivo de doar para alguém específico.
 Vamos analisar o tipo de doação e o tipo sanguíneo.
+<br />
+
 
 #### Tipo de Doação em Tupandi por Tipo sanguíneo
 ```{r}
