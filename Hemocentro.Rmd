@@ -386,13 +386,13 @@ group_cidade_sexo %>%
         axis.text.x = element_text(angle = 90, hjust = 1),
         axis.title=element_text(size=14,face="bold"))  
 ```
-
+Podemos observar casos onde temos doações somente de homens e casos onde temos cidades com doações somente de mulheres, interessante.
 
 <br />
+
 ### Tipos de doações
 Vamos analisar os tipos de doações e a quantidade de cada tipo. Vamos começar focando nas cidades onde as mulheres tiveram 100% das doações e onde os homens foram responsáveis por 100% delas.
 <br />
-
 
 #### Tipo de doações onde homens tiveram 100% de doações
 ```{r}
@@ -433,7 +433,7 @@ doacoes %>%
 
 
 <br />
-Nesses casos onde as mulheres tiveram doações 100% dos casos, temos o dobro de doações de onde tivemos homens com 100% das doações.
+Nesses casos onde os homens tiveram doações 100% dos casos, temos o dobro de doações de onde tivemos mulheres com 100% das doações.
 Vamos analisar todo o dataset por tipo de doação, separando por sexo.
 <br />
 
@@ -456,8 +456,62 @@ doacoes %>%
 
 
 <br />
-Em ambos os sexos temos mais doações do tipo 'Sangue total reposição' e 'Sangue total espontânea' com o tipo 'Plaquetaferese espontânea' como o terceiro mais citado.
+Em ambos os sexos temos mais doações do tipo 'Sangue total reposição' e 'Sangue total espontânea' com o tipo 'Plaquetaferese espontânea' como o terceiro mais citado. Por mais que as doações por reposição sejam a maioria, temos que notar que doações onde a mesma é feita de forma espontânea (ou seja, sem a intenção de ajudar alguém específico) está bem próxima das doações feitas com ojetivando alguém. 
 <br />
+Vamos agora focar na cidade com maior proporção de doações para verificar se temos algum padrão ou mesmo se conseguiremos identificar algum padrão.
+<br />
+
+#### Analizando o cenário de Sertão Santana - Tipo Sanguíneo
+```{r}
+tipo_sangue <- subset(doacoes, CIDADE == 'SERTAO SANTANA') %>%
+  dplyr::group_by(ABO_DOADOR, SEXO)%>%
+  dplyr::summarise(QUANTIDADE=n())
+ 
+tipo_sangue%>%
+ ggplot(mapping = aes(x = ABO_DOADOR, y = QUANTIDADE))+
+ geom_bar(stat = "identity")+
+  geom_text(aes(label=QUANTIDADE), vjust=-0.2, color="blue") +
+ labs(title="Quantidade de doação por tipo sanguíneo e sexo")+
+ ylab("Quantidade")+
+ xlab("Tipo Sanguíneo")+
+ theme(plot.title = element_text(color="red", size=12, face="bold.italic"),
+       axis.text.x = element_text(angle = 90, hjust = 1),
+       axis.title=element_text(size=14,face="bold"))+
+  facet_wrap(~SEXO, ncol=2)
+```
+
+
+<br /> 
+Com os resultados de Tupandi tinham apresentado um cenário bem peculiar, devido ao fato de ser uma cidade pequena e o número de doação tanto de homens como de mulheres serem iguais, poderíamos constatar que foi uma mobilização social em prol de alguém da cidade, mas não parece o caso. Ainda pode ser o caso de ser uma doação resultante de uma mobilização social de algum grupo da cidade, mas podemos ter certeza que não foi uma mobilização em prol de alguém específico.
+<br />
+Para ter certeza da última constatação, vamos listar o motivo da doação efetuada pela população de Tupandi.
+<br />
+
+
+#### Tipo de Doação em Tupandi
+```{r}
+doacoes %>%  
+ subset(CIDADE == 'SERTAO SANTANA') %>%
+ dplyr::group_by(TIPO_DOACAO, SEXO)%>%
+ dplyr::summarise(QUANTIDADE=n())%>%
+ ggplot(mapping = aes(x = TIPO_DOACAO, y = QUANTIDADE))+
+  geom_bar(stat = "identity")+
+  geom_text(aes(label=QUANTIDADE), vjust=0, color="red") +
+  labs(title="Quantidade por Tipo de doação e sexo")+
+  ylab("Quantidade")+
+  xlab("Tipo Doação")+
+  theme(plot.title = element_text(color="red", size=12, face="bold.italic"),
+       axis.text.x = element_text(angle = 90, hjust = 1),
+       axis.title=element_text(size=14,face="bold"))+
+  facet_wrap(~SEXO, ncol=2)
+```
+
+
+#### Proporção do Tipo de Doação em Tupandi
+```{r}
+maior_prop_doacoes <- subset(doacoes, CIDADE == 'SERTAO SANTANA')
+ 
+```
 
 
 ### Doações e Idade
@@ -525,7 +579,7 @@ poa_df <- doacoes %>%
 
 poa_df$BAIRRO <- as.factor(poa_df$BAIRRO)
 print('Sumário por bairros.')
-summary(poa_df$BAIRRO)
+head(summary(poa_df$BAIRRO))
 ```
 
 
@@ -626,58 +680,6 @@ doacoes[ doacoes$CIDADE %in%  names(table(doacoes$CIDADE))[table(doacoes$CIDADE)
 ```
 
 
-<br />
-#### Analizando o cenário de Tupandi - Tipo Sanguíneo
-```{r}
-tipo_sangue <- subset(doacoes, CIDADE == 'SERTAO SANTANA') %>%
-  dplyr::group_by(ABO_DOADOR, SEXO)%>%
-  dplyr::summarise(QUANTIDADE=n())
- 
-tipo_sangue%>%
- ggplot(mapping = aes(x = ABO_DOADOR, y = QUANTIDADE))+
- geom_bar(stat = "identity")+
-  geom_text(aes(label=QUANTIDADE), vjust=-0.2, color="blue") +
- labs(title="Quantidade de doação por tipo sanguíneo e sexo")+
- ylab("Quantidade")+
- xlab("Tipo Sanguíneo")+
- theme(plot.title = element_text(color="red", size=12, face="bold.italic"),
-       axis.text.x = element_text(angle = 90, hjust = 1),
-       axis.title=element_text(size=14,face="bold"))+
-  facet_wrap(~SEXO, ncol=2)
-```
-
-
-<br /> 
-Com os resultados de Tupandi tinham apresentado um cenário bem peculiar, devido ao fato de ser uma cidade pequena e o número de doação tanto de homens como de mulheres serem iguais, poderíamos constatar que foi uma mobilização social em prol de alguém da cidade, mas não parece o caso. Ainda pode ser o caso de ser uma doação resultante de uma mobilização social de algum grupo da cidade, mas podemos ter certeza que não foi uma mobilização em prol de alguém específico.
-<br />
-Para ter certeza da última constatação, vamos listar o motivo da doação efetuada pela população de Tupandi.
-<br />
-
-
-#### Tipo de Doação em Tupandi
-```{r}
-doacoes %>%  
- subset(CIDADE == 'SERTAO SANTANA') %>%
- dplyr::group_by(TIPO_DOACAO, SEXO)%>%
- dplyr::summarise(QUANTIDADE=n())%>%
- ggplot(mapping = aes(x = TIPO_DOACAO, y = QUANTIDADE))+
-  geom_bar(stat = "identity")+
-  geom_text(aes(label=QUANTIDADE), vjust=0, color="red") +
-  labs(title="Quantidade por Tipo de doação e sexo")+
-  ylab("Quantidade")+
-  xlab("Tipo Doação")+
-  theme(plot.title = element_text(color="red", size=12, face="bold.italic"),
-       axis.text.x = element_text(angle = 90, hjust = 1),
-       axis.title=element_text(size=14,face="bold"))+
-  facet_wrap(~SEXO, ncol=2)
-```
-
-
-#### Proporção do Tipo de Doação em Tupandi
-```{r}
-maior_prop_doacoes <- subset(doacoes, CIDADE == 'SERTAO SANTANA')
- 
-```
 
 
 <br />
@@ -688,20 +690,20 @@ Vamos analisar o tipo de doação e o tipo sanguíneo.
 
 #### Tipo de Doação em Tupandi por Tipo sanguíneo
 ```{r}
-doacoes %>%  
- subset(CIDADE == 'SERTAO SANTANA' & ABO_DOADOR != 'NULL') %>%
- dplyr::group_by(TIPO_DOACAO, ABO_DOADOR)%>%
- dplyr::summarise(QUANTIDADE=n())%>%
- ggplot(mapping = aes(x = TIPO_DOACAO, y = QUANTIDADE))+
-  geom_bar(stat = "identity")+
-  geom_text(aes(label=QUANTIDADE), vjust=0, color="red") +
-  labs(title="Quantidade por Tipo de doação e Tipo Sanguíneo")+
-  ylab("Quantidade")+
-  xlab("Tipo Doação")+
-  theme(plot.title = element_text(color="red", size=12, face="bold.italic"),
-       axis.text.x = element_text(angle = 90, hjust = 1),
-       axis.title=element_text(size=14,face="bold"))+
-  facet_wrap(~TIPO_SANGUE, ncol=2)
+# doacoes %>%  
+#  subset(CIDADE == 'SERTAO SANTANA' & ABO_DOADOR != 'NULL') %>%
+#  dplyr::group_by(TIPO_DOACAO, ABO_DOADOR)%>%
+#  dplyr::summarise(QUANTIDADE=n())%>%
+#  ggplot(mapping = aes(x = TIPO_DOACAO, y = QUANTIDADE))+
+#   geom_bar(stat = "identity")+
+#   geom_text(aes(label=QUANTIDADE), vjust=0, color="red") +
+#   labs(title="Quantidade por Tipo de doação e Tipo Sanguíneo")+
+#   ylab("Quantidade")+
+#   xlab("Tipo Doação")+
+#   theme(plot.title = element_text(color="red", size=12, face="bold.italic"),
+#        axis.text.x = element_text(angle = 90, hjust = 1),
+#        axis.title=element_text(size=14,face="bold"))+
+#   facet_wrap(~TIPO_SANGUE, ncol=2)
 ```
 
 
