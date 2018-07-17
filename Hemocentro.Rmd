@@ -9,7 +9,7 @@ output:
   word_document: default
 ---
 
-Análise da base de dados do hemocentro de Porto Alegre. Estes dados compoem a base de dados referênte a doações feitas no ano de 2017.
+Análise da base de dados do hemocentro de Porto Alegre. Estes dados compoem a base de dados referênte a doações feitas no ano de 2015 até início de 2018.
 Todo os dados foram obtidos com permissão da diretoria do hospital. Conseguimos os dados pois estou iniciando um grupo de estudos na Universidade Feevale, junto 
 com outros alunos, para que consigamos, através de uma análise extensa e minuciosa, gerar valor para o hospital traçando perfís de doadores e tentando encontrar
 padrões que ocasionaram tanto doações como perdas de materiais. A análise que se segue foi toda feita por minha pessoa com a finalidade de servir como overview e início 
@@ -23,13 +23,13 @@ https://www.fee.rs.gov.br/indicadores/populacao/estimativas-populacionais/
 
 #### Carregando bibliotecas
 ```{r}
-library(ggplot2)
-library(tidyr)
+library(tidyverse)
 library(gridExtra)
 library(readr)
 library(stringr)
 library(reshape2)
 library(stringi)
+library(lubridate)
 
 # SE ESTIVER USANDO MAC, Setando Encoding
 Sys.setlocale("LC_ALL", "pt_BR.UTF-8")
@@ -217,7 +217,7 @@ Vamos começar carregando o indicador populacional por cidades do estado do RS. 
 pop_cidades <- read.csv2(file = '20170831populacao-municipio-sexo-fx-etaria2.csv', sep = ",")
 
 #Vamos validar a classe das colunas
-lapply(pop_cidades, class)
+#lapply(pop_cidades, class)
 
 head(pop_cidades)
 ```
@@ -267,7 +267,7 @@ doacoes <- doacoes %>%
   subset(!is.null(CIDADE) & CIDADE != 'NULL')
 
 doacoes <- doacoes %>%
-  dplyr::left_join(pop_cidades, by = "CIDADE") 
+  left_join(pop_cidades, by = "CIDADE") 
 
 head(doacoes)
 ```
@@ -284,15 +284,15 @@ Vamos começar com uma análise mais ampla, vamos agrupar por cidade e depois po
 ```{r}
 doacoes$CIDADE <- as.factor(doacoes$CIDADE)
 
-group_cidade <- dplyr::group_by(doacoes, CIDADE, TOTAL, TOTAL_H, TOTAL_M)%>%
-  dplyr::summarise(DOACOES=n()) %>%
-  dplyr::arrange(-DOACOES)
+group_cidade <- group_by(doacoes, CIDADE, TOTAL, TOTAL_H, TOTAL_M)%>%
+  summarise(DOACOES=n()) %>%
+  arrange(-DOACOES)
 
 
 group_cidade$PROPORCAO <- (group_cidade$DOACOES/group_cidade$TOTAL)
 
 group_cidade <- group_cidade %>% 
-  dplyr::arrange(-PROPORCAO)
+  arrange(-PROPORCAO)
 
 ```
 <br />
@@ -320,8 +320,8 @@ a proporção de doação será diferente em uma mesma cidade para homens e para
 ```{r}
 
 # Começamos agrupando o nosso dataset por sexo.
-group_cidade_sexo <- dplyr::group_by(doacoes, CIDADE, TOTAL, TOTAL_H, TOTAL_M, SEXO)%>%
-  dplyr::summarise(DOACOES=n())
+group_cidade_sexo <- group_by(doacoes, CIDADE, TOTAL, TOTAL_H, TOTAL_M, SEXO)%>%
+  summarise(DOACOES=n())
 
 group_cidade_sexo$PROPORCAO <- group_cidade_sexo$DOACOES/group_cidade_sexo$TOTAL
 
@@ -334,11 +334,11 @@ group_cidade_mulheres <- group_cidade_mulheres[complete.cases(group_cidade_mulhe
 
 #Agora vamos filtrar somente as 10 cidades com maiores proporções de doação para cada sexo.
 group_cidade_homens <- group_cidade_homens %>%
-  dplyr::arrange(-PROPORCAO) %>%
+  arrange(-PROPORCAO) %>%
   head(n=10)
 
 group_cidade_mulheres <- group_cidade_mulheres %>%
-  dplyr::arrange(-PROPORCAO) %>%
+  arrange(-PROPORCAO) %>%
   head(n=10)
 
 #Pronto, agora vamos agrupar novamente os dados para então plotarmos esses valores.
@@ -399,7 +399,7 @@ Vamos analisar os tipos de doações e a quantidade de cada tipo. Vamos começar
 nomes <- c("ESTEIO", "MORRO REUTER", "FELIZ", "TRES FORQUILHAS")
 
 doacoes %>%
-  dplyr::filter(CIDADE %in% nomes) %>%
+  filter(CIDADE %in% nomes) %>%
   ggplot(mapping = aes(x = TIPO_DOACAO))+
   geom_bar()+
   labs(title="Cidades com doacoes 100% de homens")+
@@ -418,7 +418,7 @@ doacoes %>%
 nomes <- c("BOM PRINCIPIO", "BOM RETIRO DO SUL", "SANTA MARIA DO HERVAL", "MINAS DO LEAO")
 
 doacoes %>%
-  dplyr::filter(CIDADE %in% nomes) %>%
+  filter(CIDADE %in% nomes) %>%
   ggplot(mapping = aes(x = TIPO_DOACAO))+
   geom_bar()+
   labs(title="Cidades com doacoes 100% de mulheres")+
@@ -464,8 +464,8 @@ Vamos agora focar na cidade com maior proporção de doações para verificar se
 #### Analizando o cenário de Sertão Santana - Tipo Sanguíneo
 ```{r}
 tipo_sangue <- subset(doacoes, CIDADE == 'SERTAO SANTANA') %>%
-  dplyr::group_by(ABO_DOADOR, SEXO)%>%
-  dplyr::summarise(QUANTIDADE=n())
+  group_by(ABO_DOADOR, SEXO)%>%
+  summarise(QUANTIDADE=n())
  
 tipo_sangue%>%
  ggplot(mapping = aes(x = ABO_DOADOR, y = QUANTIDADE))+
@@ -488,12 +488,12 @@ Para ter certeza da última constatação, vamos listar o motivo da doação efe
 <br />
 
 
-#### Tipo de Doação em Tupandi
+#### Tipo de Doação em Sertão Santana
 ```{r}
 doacoes %>%  
  subset(CIDADE == 'SERTAO SANTANA') %>%
- dplyr::group_by(TIPO_DOACAO, SEXO)%>%
- dplyr::summarise(QUANTIDADE=n())%>%
+ group_by(TIPO_DOACAO, SEXO)%>%
+ summarise(QUANTIDADE=n())%>%
  ggplot(mapping = aes(x = TIPO_DOACAO, y = QUANTIDADE))+
   geom_bar(stat = "identity")+
   geom_text(aes(label=QUANTIDADE), vjust=0, color="red") +
@@ -501,13 +501,201 @@ doacoes %>%
   ylab("Quantidade")+
   xlab("Tipo Doação")+
   theme(plot.title = element_text(color="red", size=12, face="bold.italic"),
-       axis.text.x = element_text(angle = 90, hjust = 1),
+       axis.text.x = element_text(angle = 90, hjust = 1, size = 8),
        axis.title=element_text(size=14,face="bold"))+
   facet_wrap(~SEXO, ncol=2)
 ```
 
+<br />
+Aqui podemos ver o que a maioria das doações foram para Reposição, ou seja, com o foco em alguém específico. Tivemos algumas doações espontâneas, mas nem se compara com o comportamento encontrado
+na análise geral. Vamos analisar o período de tais doações, verificar se tais doações tiveram um acúmulo em um período específico ou não.
+<br />
 
-#### Proporção do Tipo de Doação em Tupandi
+#### Analisando o período das doações de Sertão Santana 
+Vamos analisar o período em que ocorreram as doações da população de Sertão Santana, para então tentar localizar o possível motivo que fez com que uma cidade pequena tivesse um case tão peculiar de doações.
+```{r}
+# Começamos primeiro filtrando os resultados referentes a S. Santana
+
+sertao_santana <- doacoes %>%  
+ subset(CIDADE == 'SERTAO SANTANA' & ABO_DOADOR != 'NULL')
+
+head(sertao_santana)
+
+# Primeiro convertemos a data de factor para Date
+sertao_santana$DT_DOACAO <- as.Date(sertao_santana$DT_DOACAO, format = "%d/%m/%Y") 
+head(sertao_santana)
+sertao_santana$MONTH <- factor(month(sertao_santana$DT_DOACAO))
+sertao_santana$YEAR <- factor(year(sertao_santana$DT_DOACAO))
+
+sertao_santana %>%
+  group_by(YEAR)%>%
+  summarise(QUANTIDADE=n())%>%
+  ggplot(mapping = aes(x = YEAR, y = QUANTIDADE))+
+    geom_bar(stat = "identity")+
+    geom_text(aes(label=QUANTIDADE), vjust=0, color="red") +
+    labs(title="Doações por Ano na cidade de Sertão Santana")+
+    ylab("Quantidade")+
+    xlab("Ano")+
+    theme(plot.title = element_text(color="red", size=12, face="bold.italic"),
+         axis.text.x = element_text(angle = 90, hjust = 1),
+         axis.title=element_text(size=14,face="bold"))
+```
+
+<br />
+Agora vamos analisar o caso de doações por mês.
+<br />
+
+```{r}
+
+sertao_santana %>%
+  group_by(MONTH)%>%
+  summarise(QUANTIDADE=n())%>%
+  ggplot(mapping = aes(x = MONTH, y = QUANTIDADE))+
+    geom_bar(stat = "identity")+
+    geom_text(aes(label=QUANTIDADE), vjust=0, color="red") +
+    labs(title="Doações por Mês na cidade de Sertão Santana")+
+    ylab("Quantidade")+
+    xlab("Mês")+
+    theme(plot.title = element_text(color="red", size=12, face="bold.italic"),
+         axis.text.x = element_text(angle = 90, hjust = 1),
+         axis.title=element_text(size=14,face="bold"))
+
+```
+
+<br />
+Não conseguimos ter uma ideia de destaque nesses dados, talvez se pegarmos o ano com mais doações e nesse ano analisarmos a quantidade de doações por 
+mês possamos encontrar algum caso onde tenhamos uma quantidade maior de doações.
+Vamos pegar o caso de 2016, onde temos quase 50% a mais de doações que os demais anos.
+<br />
+
+```{r}
+
+sertao_santana %>%
+  subset(YEAR == '2016') %>%
+  group_by(MONTH)%>%
+  summarise(QUANTIDADE=n())%>%
+  ggplot(mapping = aes(x = MONTH, y = QUANTIDADE))+
+    geom_bar(stat = "identity")+
+    geom_text(aes(label=QUANTIDADE), vjust=0, color="red") +
+    labs(title="Doações por Mês na cidade de Sertão Santana no ano de 2016")+
+    ylab("Quantidade")+
+    xlab("Mês")+
+    theme(plot.title = element_text(color="red", size=12, face="bold.italic"),
+         axis.text.x = element_text(angle = 90, hjust = 1),
+         axis.title=element_text(size=14,face="bold"))
+
+```
+
+<br />
+Ok, temos 6 meses com pouquíssimas doações, 1 mês com nenhuma doação 6 meses que se destacam, com destaque para 3 meses: Abril, Julho e Outubro.
+Vamos começar analisando o período em que foram feitas tais doações.
+<br />
+
+```{r}
+sertao_santana %>%
+  subset(YEAR == '2016' & MONTH == "4" ) %>%
+  group_by(DT_DOACAO)%>%
+  summarise(QUANTIDADE=n())%>%
+  ggplot(mapping = aes(x = DT_DOACAO, y = QUANTIDADE))+
+    geom_bar(stat = "identity")+
+    geom_text(aes(label=QUANTIDADE), vjust=0, color="red") +
+    labs(title="Doações Sertão Santana no mês de Abril de 2016")+
+    ylab("Quantidade")+
+    xlab("Data")+
+    theme(plot.title = element_text(color="red", size=12, face="bold.italic"),
+         axis.text.x = element_text(angle = 90, hjust = 1),
+         axis.title=element_text(size=14,face="bold"))
+```
+
+<br />
+O interessante aqui é que temos 78 doações no dia 9 de abril. Uma quantidade bem anormal para uma cidade de 5 mil habitantes. Vamos analisar o tipo sanguíneo dos doadores.
+<br />
+
+```{r}
+sertao_santana %>%
+  subset(DT_DOACAO == as.Date('2016-04-09')) %>%
+  group_by(ABO_DOADOR)%>%
+  summarise(QUANTIDADE=n())%>%
+  ggplot(mapping = aes(x = ABO_DOADOR, y = QUANTIDADE, fill = ABO_DOADOR))+
+    geom_bar(stat = "identity")+
+    geom_text(aes(label=QUANTIDADE), vjust=0) +
+    labs(title="Doações Sertão Santana por Tipo, 09 de Abril de 2016")+
+    ylab("Quantidade")+
+    xlab("Tipo Sanguíneo")+
+    theme(plot.title = element_text(color="red", size=12, face="bold.italic"),
+         axis.text.x = element_text(angle = 90, hjust = 1),
+         axis.title=element_text(size=14,face="bold"))
+```
+
+<br />
+Temos um padrão aqui, segundo o site da Cruz Vermelha(https://www.redcrossblood.org/donate-blood/how-to-donate/types-of-blood-donations/blood-types.html#), pessoas do tipo sanguíneo A, AB e O podem doar todas em específico para o tipo sanguíneo AB.
+Vamos gerar um novo gráfico com os demais dias do mês de abril e verificar se temos o mesmo padrão de doador.
+<br />
+
+```{r}
+sertao_santana %>%
+  subset(YEAR == '2016' & MONTH == "4" ) %>%
+  group_by(ABO_DOADOR, DT_DOACAO)%>%
+  summarise(QUANTIDADE=n())%>%
+  ggplot(mapping = aes(x = ABO_DOADOR, y = QUANTIDADE, fill = ABO_DOADOR))+
+    geom_bar(stat = "identity")+
+    geom_text(aes(label=QUANTIDADE), vjust=0) +
+    labs(title="Doações Sertão Santana por Tipo, mês de Abril - 2016")+
+    ylab("Quantidade")+
+    xlab("Tipo Sanguíneo")+
+    theme(plot.title = element_text(color="red", size=12, face="bold.italic"),
+         axis.text.x = element_text(angle = 90, hjust = 1),
+         axis.title=element_text(size=14,face="bold"))+
+  facet_wrap(~DT_DOACAO, ncol = 2)
+```
+
+<br />
+No dia 16 temos quase o mesmo comportamento do dia 9, a única diferênça é que temos doadores com o tipo sanguíneo B e não mais os do tipo AB, mas ainda segundo o site da Cruz Vermelha, doadores do tipo B podem doar para pessoas do tipo AB, nossa constante nesse cenário.
+<br />
+Vou mudar a perspectiva, vamos analisar o perfil desses doadores, começando pela idade desses doadores.
+<br />
+
+```{r}
+sertao_santana %>%
+  subset(YEAR == '2016' & MONTH == "4" ) %>%
+  group_by(IDADE, SEXO)%>%
+  summarise(QUANTIDADE=n())%>%
+  ggplot(mapping = aes(x = IDADE, y = QUANTIDADE, color=SEXO))+
+    geom_line()+
+    labs(title="Doações Sertão Santana distribuído por idade e sexo, mês de Abril - 2016")+
+    ylab("Quantidade")+
+    xlab("Idade")+
+    theme(plot.title = element_text(color="red", size=12, face="bold.italic"),
+         axis.text.x = element_text(angle = 90, hjust = 1),
+         axis.title=element_text(size=14,face="bold"))
+```
+
+
+<br />
+Se analisarmos o comportamento da distribuição, veremos que até a faixa dos 45 anos temos quase o mesmo comportamento, a diferença é que homens apresentam uma idade um pouco maior que as mulheres, mas o comportamento da linha segue o mesmo padrão, a partir dos 45 podemos notar que temos mais doações de homens.
+<br />
+Vou focar agora na escolaridade, não creio que possamos ter algum padrão, por se tratar de uma cidade do interior provavelmente o nível de escolaridade vai estar nivelado, dado as dificuldades de locomoção para instituições de ensino, veremos.
+<br />
+
+
+```{r}
+sertao_santana %>%
+  subset(YEAR == '2016' & MONTH == "4" ) %>%
+  group_by(ESCOLARIDADE, SEXO)%>%
+  summarise(QUANTIDADE=n())%>%
+  ggplot(mapping = aes(x = ESCOLARIDADE, y = QUANTIDADE, fill=SEXO))+
+    geom_bar(stat = "identity")+
+    labs(title="Doações Sertão Santana distribuído por escolaridade e sexo, mês de Abril - 2016")+
+    ylab("Quantidade")+
+    xlab("Escolaridade")+
+    theme(plot.title = element_text(color="red", size=12, face="bold.italic"),
+         axis.text.x = element_text(angle = 90, hjust = 1),
+         axis.title=element_text(size=14,face="bold"))+
+  facet_wrap(~SEXO)
+```
+
+
+#### Proporção do Tipo de Doação em Sertão Santana
 ```{r}
 maior_prop_doacoes <- subset(doacoes, CIDADE == 'SERTAO SANTANA')
  
@@ -540,8 +728,8 @@ summary(doacoes$IDADE)
 Vamos analisar a distribuição de idade dos doadores, novamente agrupado por sexo.
 ```{r}
 doacoes %>%
-  dplyr::group_by(IDADE, SEXO)%>%
-  dplyr::summarise(DOACOES=n()) %>%
+  group_by(IDADE, SEXO)%>%
+  summarise(DOACOES=n()) %>%
   ggplot(mapping = aes(x = IDADE, y = DOACOES, color=SEXO))+
   geom_line()+
   labs(title="Quantidade de doacoes x Idade x Sexo")+
