@@ -30,6 +30,7 @@ library(stringr)
 library(reshape2)
 library(stringi)
 library(lubridate)
+library(reshape2)
 
 # SE ESTIVER USANDO MAC, Setando Encoding
 Sys.setlocale("LC_ALL", "pt_BR.UTF-8")
@@ -315,7 +316,7 @@ group_cidade %>%
 #### Agrupamento por CIDADE e SEXO
 Para agrupamento por cidade, vamos fazer diferente, vamos dividir nosso dataset em dois, pois temos os casos de mulheres e homens, provavelmente
 a proporção de doação será diferente em uma mesma cidade para homens e para mulheres.
-
+<br />
 
 ```{r}
 
@@ -342,7 +343,7 @@ group_cidade_mulheres <- group_cidade_mulheres %>%
   head(n=10)
 
 #Pronto, agora vamos agrupar novamente os dados para então plotarmos esses valores.
-group_cidade_sexo <- dplyr::union(group_cidade_homens, group_cidade_mulheres)
+group_cidade_sexo <- union(group_cidade_homens, group_cidade_mulheres)
 
 head(group_cidade_sexo)
 ```
@@ -695,12 +696,143 @@ sertao_santana %>%
 ```
 
 
-#### Proporção do Tipo de Doação em Sertão Santana
+<br />
+Temos uma ideia da distribuição de escolaridade dos doadores de Sertão Santa, vou comparar agora com a distribuição geral dos doadores e ver se segue o mesmo padrão.
+<br />
+
+
 ```{r}
-maior_prop_doacoes <- subset(doacoes, CIDADE == 'SERTAO SANTANA')
- 
+doacoes %>%
+  subset(ESCOLARIDADE != 'NULL' & !is.null(ESCOLARIDADE)) %>%
+  group_by(ESCOLARIDADE, SEXO)%>%
+  summarise(QUANTIDADE=n())%>%
+  ggplot(mapping = aes(x = ESCOLARIDADE, y = QUANTIDADE, fill=SEXO))+
+    geom_bar(stat = "identity")+
+    labs(title="Doações por escolaridade e sexo - Geral")+
+    ylab("Quantidade")+
+    xlab("Escolaridade")+
+    theme(plot.title = element_text(color="red", size=12, face="bold.italic"),
+         axis.text.x = element_text(angle = 90, hjust = 1),
+         axis.title=element_text(size=14,face="bold"))+
+  facet_wrap(~SEXO)
 ```
 
+
+<br />
+Não temos exatamente o mesmo comportamento de Sertão Santa, devido as caracteristicas do interior. Mas Podemos notar que em ambos os casos o perfil dos homens tem destaque entre homens com Ensino Médio Completo e Fundamental Incompleto, talvez esse seja o  espelho de nossa sociedade? Talvez conseguindo um conjunto de dados sobre escolaridade possamos analisar com mais precisão, mas os dados nos levam a ponderar que talvez teríamos um destaque para pessoas com superior incompleto e completo, visto que nossa população possuí um baixo índice de pessoas com escolaridade em nível superior e nos dados temos uma grande quantidade de doações deste grupo.
+<br />
+Voltemos ao perfil dos doadores de Sertão Santana. Vou analisar a distribuição da idade dos mesmos.
+<br />
+
+
+```{r}
+doacoes %>%
+  group_by(IDADE, SEXO)%>%
+  summarise(QUANTIDADE=n())%>%
+  ggplot(mapping = aes(x = IDADE, y = QUANTIDADE, color=SEXO))+
+    geom_line(stat = "identity")+
+    labs(title="Distribuição de Idade - Sertão Santana")+
+    ylab("Quantidade")+
+    xlab("Idade")+
+    theme(plot.title = element_text(color="red", size=12, face="bold.italic"),
+         axis.text.x = element_text(angle = 90, hjust = 1),
+         axis.title=element_text(size=14,face="bold"))
+```
+
+
+<br />
+A distribuição das idades se comporta quase da mesma maneira, podemos ver que somente na faixa dos 26 anos os homens ficam com uma doação menor que as mulheres. Mas este gráfico ainda não expressa a verdade dos fatos, vamos trabalhar aqui com a ideia da proporção entre os sexos, assim teremos uma ideia real da quantidade de doações dado a população e a distrinuição de idade. 
+<br />
+Vou pegar o dataset "cru" informado pelo link da entidade estadual(informado acima) onde temos a distribuição por faixa etária e por município. E para cada grupo de faixa etária vou contar o total de doações, com isso teremos uma proporção de doações por faixa etária, podemos até aproveitar a ideia e aplicar em todo dataset posteriormente.
+<br />
+
+<br />
+Vamos carregar novamente o dataset de populações, já que havíamos removido as colunas que até então eram desnecessárias, agora já se fazem necessárias.
+<br />
+
+
+```{r}
+pop_cidades <- read.csv2(file = '20170831populacao-municipio-sexo-fx-etaria2.csv', sep = ",")
+pop_cidades$MUNICÍPIO <- str_to_upper(pop_cidades$MUNICÍPIO)
+pop_cidades$MUNICÍPIO <- stri_trans_general(pop_cidades$MUNICÍPIO,"Latin-ASCII")
+colnames(pop_cidades)[2]  <- "CIDADE"
+
+df_idade <- data.frame()
+
+for (column in names(pop_cidades)) {
+  
+  inicial <- (-1)
+  final <- (-1)
+  label <- ""
+  
+  if(grepl("Homens...", column)){
+    inicial <- as.numeric(substr(column, 13, 14))
+    final <- as.numeric(substr(column, 18, 19))
+    label <- "M"
+  }else if(grepl("Mulheres...", column)){
+    inicial <- as.numeric(substr(column, 15, 16))
+    final <- as.numeric(substr(column, 20, 21))
+    label <- "F"
+  }
+  
+  if(inicial > -1){
+    aux <- sertao_santana %>% 
+            subset(IDADE >= inicial & IDADE <= final) %>%
+            group_by(SEXO) %>%
+            summarise(QUANTIDADE=n())
+    
+    quantity <- 0
+    
+    if (length(aux[aux$SEXO == label,]$QUANTIDADE) > 0){
+      quantity <- aux[aux$SEXO == label,]$QUANTIDADE
+    }
+    
+    df_idade <- rbind(df_idade, data.frame(paste(c(inicial, final), collapse = "-"),
+                                           pop_cidades[pop_cidades$CIDADE == 'SERTAO SANTANA',][column][[1]],
+                                           quantity,
+                                           label))
+  }
+}
+
+colnames(df_idade) <- c("FAIXA", "POPULACAO", "DOACOES", "SEXO")
+
+df_idade %>%
+  ggplot(mapping = aes(x = FAIXA, y = DOACOES/POPULACAO, fill=SEXO))+
+    geom_bar(stat = "identity")+
+    labs(title="Proporção de Doações por População Etária e Sexo - Sertão Santana")+
+    ylab("Proporção Por Faixa Etária")+
+    xlab("Idade")+
+    theme(plot.title = element_text(color="red", size=12, face="bold.italic"),
+         axis.text.x = element_text(angle = 90, hjust = 1),
+         axis.title=element_text(size=14,face="bold"))+
+  facet_wrap(~SEXO)
+```
+
+```{r}
+g1 <- df_idade %>%
+  ggplot(mapping = aes(x = FAIXA, y = POPULACAO, fill=SEXO))+
+    geom_bar(stat = "identity")+
+    labs(title="Habitantes por Faixa Etária e Sexo - Sertão Santana")+
+    ylab("Habitantes")+
+    xlab("Idade")+
+    theme(plot.title = element_text(color="red", size=12, face="bold.italic"),
+         axis.text.x = element_text(angle = 90, hjust = 1),
+         axis.title=element_text(size=14,face="bold"))+
+  facet_wrap(~SEXO)
+
+g2 <- df_idade %>%
+  ggplot(mapping = aes(x = FAIXA, y = DOACOES, fill=SEXO))+
+    geom_bar(stat = "identity")+
+    labs(title="Doações por Faixa Etária e Sexo - Sertão Santana")+
+    ylab("Habitantes")+
+    xlab("Idade")+
+    theme(plot.title = element_text(color="red", size=12, face="bold.italic"),
+         axis.text.x = element_text(angle = 90, hjust = 1),
+         axis.title=element_text(size=14,face="bold"))+
+  facet_wrap(~SEXO)
+
+grid.arrange(g1, g2)
+```
 
 ### Doações e Idade
 #### Criando função para calcular a idade dos doadores
