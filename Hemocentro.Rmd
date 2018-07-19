@@ -215,7 +215,19 @@ Vamos começar carregando o indicador populacional por cidades do estado do RS. 
 
 
 ```{r}
-pop_cidades <- read.csv2(file = '20170831populacao-municipio-sexo-fx-etaria2.csv', sep = ",")
+
+# O ideal era colocar esse trecho de código em uma função, para não ter que ficar replicando, pois vou usar posteriormente
+
+carrega_cidades <- function(){
+  cidades <- read.csv2(file = '20170831populacao-municipio-sexo-fx-etaria2.csv', sep = ",")
+  cidades$MUNICÍPIO <- str_to_upper(cidades$MUNICÍPIO)
+  cidades$MUNICÍPIO <- stri_trans_general(cidades$MUNICÍPIO,"Latin-ASCII")
+  colnames(cidades)[2]  <- "CIDADE"  
+  return(cidades)
+}
+
+
+pop_cidades <- carrega_cidades()
 
 #Vamos validar a classe das colunas
 #lapply(pop_cidades, class)
@@ -247,7 +259,6 @@ Para padronizar, vamos renomear a tabela pop_cidade, até pelo fato do dataset e
 
 ```{r}
 colnames(pop_cidades)[1]  <- "CODIGO"
-colnames(pop_cidades)[2]  <- "CIDADE"
 colnames(pop_cidades)[4]  <- "TOTAL_H"
 colnames(pop_cidades)[5]  <- "TOTAL_M"
 
@@ -752,11 +763,9 @@ Vamos carregar novamente o dataset de populações, já que havíamos removido a
 
 
 ```{r}
-pop_cidades <- read.csv2(file = '20170831populacao-municipio-sexo-fx-etaria2.csv', sep = ",")
-pop_cidades$MUNICÍPIO <- str_to_upper(pop_cidades$MUNICÍPIO)
-pop_cidades$MUNICÍPIO <- stri_trans_general(pop_cidades$MUNICÍPIO,"Latin-ASCII")
-colnames(pop_cidades)[2]  <- "CIDADE"
 
+# Carregando o dataset novamente, para carregar as colunas que haviam sido removidas.
+pop_cidades <- carrega_cidades()
 df_idade <- data.frame()
 
 for (column in names(pop_cidades)) {
@@ -799,7 +808,7 @@ colnames(df_idade) <- c("FAIXA", "POPULACAO", "DOACOES", "SEXO")
 df_idade %>%
   ggplot(mapping = aes(x = FAIXA, y = DOACOES/POPULACAO, fill=SEXO))+
     geom_bar(stat = "identity")+
-    labs(title="Proporção de Doações por População Etária e Sexo - Sertão Santana")+
+    labs(title="Proporção de Doações por Faixa Etária e Sexo - Sertão Santana")+
     ylab("Proporção Por Faixa Etária")+
     xlab("Idade")+
     theme(plot.title = element_text(color="red", size=12, face="bold.italic"),
@@ -832,6 +841,20 @@ g2 <- df_idade %>%
   facet_wrap(~SEXO)
 
 grid.arrange(g1, g2)
+```
+
+```{r}
+
+sertao_santana %>%
+  ggplot(mapping = aes(x = IDADE, fill=SEXO))+
+    geom_histogram(binwidth = 1)+
+    labs(title="Proporção de Doações por Faixa Etária e Sexo - Sertão Santana")+
+    ylab("Proporção Por Faixa Etária")+
+    xlab("Idade")+
+    theme(plot.title = element_text(color="red", size=12, face="bold.italic"),
+         axis.text.x = element_text(angle = 90, hjust = 1),
+         axis.title=element_text(size=14,face="bold"))
+
 ```
 
 ### Doações e Idade
