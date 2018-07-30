@@ -243,8 +243,8 @@ Vamos ter que trabalhar os dos dois, pois parece que alguns dos registros do dat
 
 
 ```{r}
-pop_cidades$MUNICÍPIO <- str_to_upper(pop_cidades$MUNICÍPIO)
-pop_cidades$MUNICÍPIO <- stri_trans_general(pop_cidades$MUNICÍPIO,"Latin-ASCII")
+pop_cidades$CIDADE <- str_to_upper(pop_cidades$CIDADE)
+pop_cidades$CIDADE <- stri_trans_general(pop_cidades$CIDADE,"Latin-ASCII")
 
 head(pop_cidades)
 ```
@@ -354,7 +354,8 @@ group_cidade_mulheres <- group_cidade_mulheres %>%
   head(n=10)
 
 #Pronto, agora vamos agrupar novamente os dados para então plotarmos esses valores.
-group_cidade_sexo <- union(group_cidade_homens, group_cidade_mulheres)
+#Erro aqui, transformando em lista
+group_cidade_sexo <- bind_rows(group_cidade_homens, group_cidade_mulheres)
 
 head(group_cidade_sexo)
 ```
@@ -522,6 +523,63 @@ doacoes %>%
 Aqui podemos ver o que a maioria das doações foram para Reposição, ou seja, com o foco em alguém específico. Tivemos algumas doações espontâneas, mas nem se compara com o comportamento encontrado
 na análise geral. Vamos analisar o período de tais doações, verificar se tais doações tiveram um acúmulo em um período específico ou não.
 <br />
+
+### Doações e Idade
+#### Criando função para calcular a idade dos doadores
+Nosso dataset não possuí a idade dos doadores já calculad, mas possuí a data de nascimento.
+Vamos então criar uma função para calcular a idade dos doadores.
+```{r}
+calc_idade <- function(data_str) {
+  data_nasc <- as.Date(as.character(data_str), format="%d/%m/%Y")
+  years <- as.numeric(difftime(Sys.Date(), data_nasc, unit="weeks"))/52.25
+  return(as.numeric(round(years)))
+}
+```
+
+
+<br />
+#### Aplicando função no DF
+```{r}
+doacoes$IDADE <- sapply(doacoes$DATA_NASC, calc_idade)
+summary(doacoes$IDADE)
+```
+
+
+<br />
+#### Distribuição de doações por idade e sexo
+Vamos analisar a distribuição de idade dos doadores, novamente agrupado por sexo.
+```{r}
+doacoes %>%
+  group_by(IDADE, SEXO)%>%
+  summarise(DOACOES=n()) %>%
+  ggplot(mapping = aes(x = IDADE, y = DOACOES, color=SEXO))+
+  geom_line()+
+  labs(title="Quantidade de doacoes x Idade x Sexo")+
+  ylab("Quantidade")+
+  xlab("Idade")+
+  theme(axis.text=element_text(size=5),
+        plot.title = element_text(color="red", size=12, face="bold.italic"),
+        axis.text.x = element_text(angle = 90, hjust = 1),
+        axis.title=element_text(size=14,face="bold"))
+```
+
+
+<br />
+#### Distribuição de idade entre os doados agrupados por sexo
+```{r}
+doacoes %>%
+  ggplot(mapping = aes(x = IDADE))+
+  geom_histogram()+
+  labs(title="Quantidade de doações x Tipo x Sexo")+
+  ylab("Quantidade")+
+  xlab("Idade")+
+  theme(axis.text=element_text(size=5),
+        plot.title = element_text(color="red", size=12, face="bold.italic"),
+        axis.text.x = element_text(angle = 90, hjust = 1),
+        axis.title=element_text(size=14,face="bold"))+
+  facet_wrap(~ SEXO, ncol = 1)
+```
+
 
 #### Analisando o período das doações de Sertão Santana 
 Vamos analisar o período em que ocorreram as doações da população de Sertão Santana, para então tentar localizar o possível motivo que fez com que uma cidade pequena tivesse um case tão peculiar de doações.
@@ -856,63 +914,6 @@ sertao_santana %>%
          axis.title=element_text(size=14,face="bold"))
 
 ```
-
-### Doações e Idade
-#### Criando função para calcular a idade dos doadores
-Nosso dataset não possuí a idade dos doadores já calculad, mas possuí a data de nascimento.
-Vamos então criar uma função para calcular a idade dos doadores.
-```{r}
-calc_idade <- function(data_str) {
-  data_nasc <- as.Date(as.character(data_str), format="%d/%m/%Y")
-  years <- as.numeric(difftime(Sys.Date(), data_nasc, unit="weeks"))/52.25
-  return(as.numeric(round(years)))
-}
-```
-
-
-<br />
-#### Aplicando função no DF
-```{r}
-doacoes$IDADE <- sapply(doacoes$DATA_NASC, calc_idade)
-summary(doacoes$IDADE)
-```
-
-
-<br />
-#### Distribuição de doações por idade e sexo
-Vamos analisar a distribuição de idade dos doadores, novamente agrupado por sexo.
-```{r}
-doacoes %>%
-  group_by(IDADE, SEXO)%>%
-  summarise(DOACOES=n()) %>%
-  ggplot(mapping = aes(x = IDADE, y = DOACOES, color=SEXO))+
-  geom_line()+
-  labs(title="Quantidade de doacoes x Idade x Sexo")+
-  ylab("Quantidade")+
-  xlab("Idade")+
-  theme(axis.text=element_text(size=5),
-        plot.title = element_text(color="red", size=12, face="bold.italic"),
-        axis.text.x = element_text(angle = 90, hjust = 1),
-        axis.title=element_text(size=14,face="bold"))
-```
-
-
-<br />
-#### Distribuição de idade entre os doados agrupados por sexo
-```{r}
-doacoes %>%
-  ggplot(mapping = aes(x = IDADE))+
-  geom_histogram()+
-  labs(title="Quantidade de doações x Tipo x Sexo")+
-  ylab("Quantidade")+
-  xlab("Idade")+
-  theme(axis.text=element_text(size=5),
-        plot.title = element_text(color="red", size=12, face="bold.italic"),
-        axis.text.x = element_text(angle = 90, hjust = 1),
-        axis.title=element_text(size=14,face="bold"))+
-  facet_wrap(~ SEXO, ncol = 1)
-```
-
 
 <br />
 #### Analisando as doações da cidade de Porto Alegre
