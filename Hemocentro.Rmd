@@ -80,9 +80,11 @@ colnames(doacoes) <- toupper(colnames(doacoes))
 ```{r}
 #Removendo acentuação.
 doacoes$CIDADE <- stri_trans_general(doacoes$CIDADE,"Latin-ASCII")
+```
 
-
-#Convertemos colunas categóricas para factor para que consigamos agrupar os valores como categorias nos gráficos.
+<br />
+####Convertemos colunas categóricas para factor para que consigamos agrupar os valores como categorias nos gráficos.
+```{r}
 doacoes$CIDADE <- as.factor(doacoes$CIDADE)
 doacoes$CIDADE <- toupper(doacoes$CIDADE)
 doacoes$ABO_DOADOR <- as.factor(doacoes$ABO_DOADOR)
@@ -191,6 +193,7 @@ first_ten
 
 <br />
 Acima podemos notar todas as cidades que compoem o Vale dos Sinos e a Grande Porto Alegre, o polo de cidades central do estado.
+O que também é justificado dado o hemocentro estudado ser de Porto Alegre, cidades mais distantes doariam em localidads próximas.
 <br />
 
 
@@ -354,7 +357,6 @@ group_cidade_mulheres <- group_cidade_mulheres %>%
   head(n=10)
 
 #Pronto, agora vamos agrupar novamente os dados para então plotarmos esses valores.
-#Erro aqui, transformando em lista
 group_cidade_sexo <- bind_rows(group_cidade_homens, group_cidade_mulheres)
 
 head(group_cidade_sexo)
@@ -492,14 +494,11 @@ tipo_sangue%>%
        axis.title=element_text(size=14,face="bold"))+
   facet_wrap(~SEXO, ncol=2)
 ```
-
-
-<br /> 
-Com os resultados de Tupandi tinham apresentado um cenário bem peculiar, devido ao fato de ser uma cidade pequena e o número de doação tanto de homens como de mulheres serem iguais, poderíamos constatar que foi uma mobilização social em prol de alguém da cidade, mas não parece o caso. Ainda pode ser o caso de ser uma doação resultante de uma mobilização social de algum grupo da cidade, mas podemos ter certeza que não foi uma mobilização em prol de alguém específico.
-<br />
-Para ter certeza da última constatação, vamos listar o motivo da doação efetuada pela população de Tupandi.
 <br />
 
+Ok, parece que temos um padrão de doador, pois os tipos sanguíneos se relacionam. Vamos investigar mais a fundo os dados.
+
+<br />
 
 #### Tipo de Doação em Sertão Santana
 ```{r}
@@ -524,78 +523,23 @@ Aqui podemos ver o que a maioria das doações foram para Reposição, ou seja, 
 na análise geral. Vamos analisar o período de tais doações, verificar se tais doações tiveram um acúmulo em um período específico ou não.
 <br />
 
-### Doações e Idade
-#### Criando função para calcular a idade dos doadores
-Nosso dataset não possuí a idade dos doadores já calculad, mas possuí a data de nascimento.
-Vamos então criar uma função para calcular a idade dos doadores.
-```{r}
-calc_idade <- function(data_str) {
-  data_nasc <- as.Date(as.character(data_str), format="%d/%m/%Y")
-  years <- as.numeric(difftime(Sys.Date(), data_nasc, unit="weeks"))/52.25
-  return(as.numeric(round(years)))
-}
-```
-
-
-<br />
-#### Aplicando função no DF
-```{r}
-doacoes$IDADE <- sapply(doacoes$DATA_NASC, calc_idade)
-summary(doacoes$IDADE)
-```
-
-
-<br />
-#### Distribuição de doações por idade e sexo
-Vamos analisar a distribuição de idade dos doadores, novamente agrupado por sexo.
-```{r}
-doacoes %>%
-  group_by(IDADE, SEXO)%>%
-  summarise(DOACOES=n()) %>%
-  ggplot(mapping = aes(x = IDADE, y = DOACOES, color=SEXO))+
-  geom_line()+
-  labs(title="Quantidade de doacoes x Idade x Sexo")+
-  ylab("Quantidade")+
-  xlab("Idade")+
-  theme(axis.text=element_text(size=5),
-        plot.title = element_text(color="red", size=12, face="bold.italic"),
-        axis.text.x = element_text(angle = 90, hjust = 1),
-        axis.title=element_text(size=14,face="bold"))
-```
-
-
-<br />
-#### Distribuição de idade entre os doados agrupados por sexo
-```{r}
-doacoes %>%
-  ggplot(mapping = aes(x = IDADE))+
-  geom_histogram()+
-  labs(title="Quantidade de doações x Tipo x Sexo")+
-  ylab("Quantidade")+
-  xlab("Idade")+
-  theme(axis.text=element_text(size=5),
-        plot.title = element_text(color="red", size=12, face="bold.italic"),
-        axis.text.x = element_text(angle = 90, hjust = 1),
-        axis.title=element_text(size=14,face="bold"))+
-  facet_wrap(~ SEXO, ncol = 1)
-```
-
-
 #### Analisando o período das doações de Sertão Santana 
 Vamos analisar o período em que ocorreram as doações da população de Sertão Santana, para então tentar localizar o possível motivo que fez com que uma cidade pequena tivesse um case tão peculiar de doações.
 ```{r}
+carregar_dados_formatados <- function(cidade, df) {
+  
+  df_aux <- df %>%
+    subset(CIDADE == cidade & ABO_DOADOR != 'NULL')
+  
+  # Convertemos a data de factor para Date
+  df_aux$DT_DOACAO <- as.Date(df_aux$DT_DOACAO, format = "%d/%m/%Y") 
+  df_aux$MONTH <- factor(month(df_aux$DT_DOACAO))
+  df_aux$YEAR <- factor(year(df_aux$DT_DOACAO))
+  return(df_aux)
+}
+
 # Começamos primeiro filtrando os resultados referentes a S. Santana
-
-sertao_santana <- doacoes %>%  
- subset(CIDADE == 'SERTAO SANTANA' & ABO_DOADOR != 'NULL')
-
-head(sertao_santana)
-
-# Primeiro convertemos a data de factor para Date
-sertao_santana$DT_DOACAO <- as.Date(sertao_santana$DT_DOACAO, format = "%d/%m/%Y") 
-head(sertao_santana)
-sertao_santana$MONTH <- factor(month(sertao_santana$DT_DOACAO))
-sertao_santana$YEAR <- factor(year(sertao_santana$DT_DOACAO))
+sertao_santa <- carregar_dados_formatados('SERTAO SANTANA', doacoes)
 
 sertao_santana %>%
   group_by(YEAR)%>%
@@ -724,6 +668,69 @@ No dia 16 temos quase o mesmo comportamento do dia 9, a única diferênça é qu
 <br />
 Vou mudar a perspectiva, vamos analisar o perfil desses doadores, começando pela idade desses doadores.
 <br />
+
+
+### Doações e Idade
+#### Criando função para calcular a idade dos doadores
+Nosso dataset não possuí a idade dos doadores já calculad, mas possuí a data de nascimento.
+Vamos então criar uma função para calcular a idade dos doadores.
+```{r}
+calc_idade <- function(data_str) {
+  data_nasc <- as.Date(as.character(data_str), format="%d/%m/%Y")
+  years <- as.numeric(difftime(Sys.Date(), data_nasc, unit="weeks"))/52.25
+  return(as.numeric(round(years)))
+}
+```
+
+
+<br />
+#### Aplicando função no DF
+```{r}
+doacoes$IDADE <- sapply(doacoes$DATA_NASC, calc_idade)
+
+# Recarregando os dados, agora com a coluna IDADE
+sertao_santana <- carregar_dados_formatados('SERTAO SANTANA', doacoes)
+
+summary(doacoes$IDADE)
+```
+
+
+<br />
+#### Distribuição de doações por idade e sexo
+Vamos analisar a distribuição de idade dos doadores, novamente agrupado por sexo.
+```{r}
+doacoes %>%
+  group_by(IDADE, SEXO)%>%
+  summarise(DOACOES=n()) %>%
+  ggplot(mapping = aes(x = IDADE, y = DOACOES, color=SEXO))+
+  geom_line()+
+  labs(title="Quantidade de doacoes x Idade x Sexo")+
+  ylab("Quantidade")+
+  xlab("Idade")+
+  theme(axis.text=element_text(size=5),
+        plot.title = element_text(color="red", size=12, face="bold.italic"),
+        axis.text.x = element_text(angle = 90, hjust = 1),
+        axis.title=element_text(size=14,face="bold"))
+```
+
+
+<br />
+#### Distribuição de idade entre os doados agrupados por sexo
+```{r}
+doacoes %>%
+  ggplot(mapping = aes(x = IDADE))+
+  geom_histogram()+
+  labs(title="Quantidade de doações x Tipo x Sexo")+
+  ylab("Quantidade")+
+  xlab("Idade")+
+  theme(axis.text=element_text(size=5),
+        plot.title = element_text(color="red", size=12, face="bold.italic"),
+        axis.text.x = element_text(angle = 90, hjust = 1),
+        axis.title=element_text(size=14,face="bold"))+
+  facet_wrap(~ SEXO, ncol = 1)
+```
+ 
+ <br />
 
 ```{r}
 sertao_santana %>%
@@ -891,7 +898,7 @@ g2 <- df_idade %>%
   ggplot(mapping = aes(x = FAIXA, y = DOACOES, fill=SEXO))+
     geom_bar(stat = "identity")+
     labs(title="Doações por Faixa Etária e Sexo - Sertão Santana")+
-    ylab("Habitantes")+
+    ylab("Quantidade de Doações")+
     xlab("Idade")+
     theme(plot.title = element_text(color="red", size=12, face="bold.italic"),
          axis.text.x = element_text(angle = 90, hjust = 1),
@@ -1023,31 +1030,5 @@ doacoes[ doacoes$CIDADE %in%  names(table(doacoes$CIDADE))[table(doacoes$CIDADE)
   facet_wrap( ~CIDADE, ncol = 2)
 ```
 
-
-
-
-<br />
-Agora temos um case interessante, tanto para homens como para mulheres o tipo de doação em mais de x% dos casos é do tipo de Reposição, ou seja, tinham o objetivo de doar para alguém específico.
-Vamos analisar o tipo de doação e o tipo sanguíneo.
-<br />
-
-
-#### Tipo de Doação em Tupandi por Tipo sanguíneo
-```{r}
-# doacoes %>%  
-#  subset(CIDADE == 'SERTAO SANTANA' & ABO_DOADOR != 'NULL') %>%
-#  dplyr::group_by(TIPO_DOACAO, ABO_DOADOR)%>%
-#  dplyr::summarise(QUANTIDADE=n())%>%
-#  ggplot(mapping = aes(x = TIPO_DOACAO, y = QUANTIDADE))+
-#   geom_bar(stat = "identity")+
-#   geom_text(aes(label=QUANTIDADE), vjust=0, color="red") +
-#   labs(title="Quantidade por Tipo de doação e Tipo Sanguíneo")+
-#   ylab("Quantidade")+
-#   xlab("Tipo Doação")+
-#   theme(plot.title = element_text(color="red", size=12, face="bold.italic"),
-#        axis.text.x = element_text(angle = 90, hjust = 1),
-#        axis.title=element_text(size=14,face="bold"))+
-#   facet_wrap(~TIPO_SANGUE, ncol=2)
-```
 
 
